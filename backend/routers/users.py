@@ -1,6 +1,6 @@
 # backend/routers/users.py
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, func
 from typing import List
@@ -14,12 +14,14 @@ router = APIRouter(
     tags=["Users"]
 )
 
-# --- 1. GET CURRENT USER PROFILE ---
+# --- 1. PRIVATE PROFILE (Settings Page) ---
+# Returns email and full details. Only for the user themselves.
 @router.get("/me", response_model=schemas.User)
 async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
     return current_user
 
-# --- 2. GET MY STATS (For Profile Page) ---
+# --- 2. DASHBOARD (Home Screen) ---
+# Returns only safe public info + game stats.
 @router.get("/profile/stats")
 async def get_my_stats(
     db: AsyncSession = Depends(get_db),
@@ -35,7 +37,7 @@ async def get_my_stats(
     solved_res = await db.execute(solved_q)
     solved_count = solved_res.scalar()
 
-    # 3. Get the actual lists to display in tabs
+    # 3. Get the actual lists
     my_requests_q = select(models.Post).where(models.Post.author_id == current_user.id).order_by(desc(models.Post.created_at))
     my_contribs_q = select(models.Post).where(models.Post.resolved_by_id == current_user.id).order_by(desc(models.Post.created_at))
     
@@ -43,7 +45,11 @@ async def get_my_stats(
     my_contribs = (await db.execute(my_contribs_q)).scalars().all()
 
     return {
-        "user": current_user,
+        # --- FIX: FILTER SENSITIVE DATA ---
+        # This converts the DB object to the 'UserPublic' schema 
+        # which ONLY has 'username' and 'points'. No password. No email.
+        "user": schemas.UserPublic.model_validate(current_user), 
+        # ----------------------------------
         "counts": {
             "created": created_count,
             "solved": solved_count,
@@ -53,9 +59,10 @@ async def get_my_stats(
         "my_contributions": my_contribs
     }
 
-# --- 3. LEADERBOARD (Top 10 Users) ---
-@router.get("/leaderboard", response_model=List[schemas.User])
+# --- 3. LEADERBOARD ---
+@router.get("/leaderboard", response_model=List[schemas.UserPublic])
 async def get_leaderboard(db: AsyncSession = Depends(get_db)):
+    # Fetch top 10 users by points
     query = select(models.User).order_by(desc(models.User.points)).limit(10)
     result = await db.execute(query)
     return result.scalars().all()

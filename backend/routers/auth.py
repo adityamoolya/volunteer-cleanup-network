@@ -56,8 +56,8 @@ async def register_user(user: schemas.UserCreate, db: AsyncSession = Depends(get
     return await crud.create_user(db=db, user=user)
 
 # Get current user
-@router.get("/users/me/", response_model=schemas.User)
-async def read_users_me(
-    current_user: Annotated[schemas.User, Depends(get_current_active_user)]
-):
-    return current_user
+# @router.get("/users/me/", response_model=schemas.User)
+# async def read_users_me(
+#     current_user: Annotated[schemas.User, Depends(get_current_active_user)]
+# ):
+#     return current_user

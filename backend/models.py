@@ -6,19 +6,19 @@ from sqlalchemy.sql import func
 from database import Base
 import enum
 
-# --- NEW: Track the lifecycle of a task ---
 class TaskStatus(str, enum.Enum):
-    OPEN = "open"                   # Red Marker
-    PENDING_VERIFICATION = "pending" # Yellow Marker (Volunteer has done it, waiting for author)
-    COMPLETED = "completed"         # Green Marker
+    OPEN = "open"
+    PENDING_VERIFICATION = "pending"
+    COMPLETED = "completed"
 
 class User(Base):
     __tablename__ = "users"
+    
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(50), unique=True, index=True)
     email = Column(String(100), unique=True, index=True)
     hashed_password = Column(String(255))
-    is_active = Column(Boolean, default=True)
+    # is_active REMOVED
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     points = Column(Integer, default=0)
@@ -33,23 +33,19 @@ class Post(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     
-    # Request Details
     image_url = Column(String(500), nullable=False)
     image_public_id = Column(String(255), nullable=False)
     caption = Column(Text, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
     
-    # --- NEW: Status Management ---
     status = Column(Enum(TaskStatus), default=TaskStatus.OPEN)
-    
-    # --- NEW: Proof of Work ---
-    proof_image_url = Column(String(500), nullable=True) # The "After" photo
+    proof_image_url = Column(String(500), nullable=True)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
     author_id = Column(Integer, ForeignKey("users.id"))
-    resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True) # The Volunteer
+    resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     
     author = relationship("User", back_populates="posts", foreign_keys=[author_id])
     resolved_by = relationship("User", back_populates="contribution_tasks", foreign_keys=[resolved_by_id])
@@ -59,18 +55,24 @@ class Post(Base):
 
 class Comment(Base):
     __tablename__ = "comments"
+    
     id = Column(Integer, primary_key=True, index=True)
     content = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    
     author_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
+    
     author = relationship("User", back_populates="comments")
     post = relationship("Post", back_populates="comments")
 
 class Like(Base):
     __tablename__ = "likes"
+    
     id = Column(Integer, primary_key=True, index=True)
+    
     user_id = Column(Integer, ForeignKey("users.id"))
     post_id = Column(Integer, ForeignKey("posts.id"))
+    
     user = relationship("User", back_populates="likes")
     post = relationship("Post", back_populates="likes")

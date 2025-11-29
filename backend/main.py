@@ -1,21 +1,16 @@
-# backend/main.py
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 
 from database import engine, Base
-# Import routers
 from routers import auth, posts, comments, images, users
 
 # --- Lifespan event for startup ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logging.info("Application startup...")
-    async with engine.begin() as conn:
-        # This creates the tables if they don't exist
-        # ideally use Alembic for migrations, but this works for Hackathons
+    async with engine.begin() as conn: #creates new databases table if not already there
         await conn.run_sync(Base.metadata.create_all)
     logging.info("Database tables created/verified.")
     yield
@@ -23,12 +18,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Community Task App",
-    version="2.0"
+    title="Community Task APi",
+    version="6.9"
 )
 
-# --- CORS ---
-origins = ["*"] # Allow all for mobile app development
+# CORS configuration
+origins = ["*"] # Allow all for mobile app development 
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,13 +33,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Register Routers ---
-app.include_router(auth.router, prefix="/api/auth")
-app.include_router(users.router, prefix="/api")    # New Profile/Leaderboard logic
-app.include_router(posts.router, prefix="/api")    # New Feed/Task logic
-app.include_router(comments.router, prefix="/api/comments")
-app.include_router(images.router, prefix="/api/images") # Keep existing image upload
-
+# Register Routers 
+app.include_router(auth.router, prefix="/api/auth") #handles authenitcation
+app.include_router(users.router, prefix="/api")    # handles users data and stats
+app.include_router(posts.router, prefix="/api")   # handles the posts router
+app.include_router(comments.router, prefix="/api/comments") # self explainatory ig
+app.include_router(images.router, prefix="/api/images") #uploads images to cloudinary
+#checks if api is up or not
 @app.get("/", tags=["Health Check"])
 def read_root():
     return {"message": "Community App API is running"}
