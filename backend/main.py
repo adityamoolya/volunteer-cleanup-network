@@ -44,6 +44,4 @@ app.include_router(images.router) #uploads images to cloudinary
 def read_root():
     return {"message": "Community App API is running"}
 
-
-
-#railway hosting???
+#seem good
