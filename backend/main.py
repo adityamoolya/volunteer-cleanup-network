@@ -34,11 +34,11 @@ app.add_middleware(
 )
 
 # Register Routers 
-app.include_router(auth.router, prefix="/api/auth") #handles authenitcation
-app.include_router(users.router, prefix="/api")    # handles users data and stats
-app.include_router(posts.router, prefix="/api")   # handles the posts router
-app.include_router(comments.router, prefix="/api/comments") # self explainatory ig
-app.include_router(images.router, prefix="/api/images") #uploads images to cloudinary
+app.include_router(auth.router, prefix="/auth") #handles authenitcation
+app.include_router(users.router)    # handles users data and stats
+app.include_router(posts.router)   # handles the posts router
+app.include_router(comments.router) # self explainatory ig
+app.include_router(images.router) #uploads images to cloudinary
 #checks if api is up or not
 @app.get("/", tags=["Health Check"])
 def read_root():
