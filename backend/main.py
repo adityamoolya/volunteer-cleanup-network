@@ -43,3 +43,7 @@ app.include_router(images.router, prefix="/api/images") #uploads images to cloud
 @app.get("/", tags=["Health Check"])
 def read_root():
     return {"message": "Community App API is running"}
+
+
+
+#railway hosting???
