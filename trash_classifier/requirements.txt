@@ -1,0 +1,4 @@
+tensorflow
+Pillow
+fastapi
+uvicorn

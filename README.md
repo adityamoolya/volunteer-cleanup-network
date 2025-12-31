@@ -1,50 +1,74 @@
-# 🌍 Community Task Force App (Backend)
+# 🌍 CleanQuest - Community Cleanup Platform
 
-A community-driven platform where people can report environmental issues (like garbage piles or areas needing cleanup) and volunteers can resolve them. Designed with **FastAPI**, **PostgreSQL**, and a **Flutter frontend**—built for speed, clarity, and real-world impact.
+A gamified community-driven platform where citizens can report environmental issues and volunteers can take action to resolve them. Built with **FastAPI backend**, **PostgreSQL database**, and **Flutter mobile frontend**—designed for speed, clarity, and real-world impact.
 
-## 🚀 Features
-
-### 🛡️ Core Capabilities
-* **Report Issues:** Users create tasks with photos and GPS coordinates.
-* **Map View:** All open tasks appear on a map, making it easy for volunteers to act.
-* **Proof Workflow:**
-    1. A volunteer completes the task and uploads proof.
-    2. The task owner reviews the proof.
-    3. Once approved, the task is marked *Closed*.
-* **Gamified Rewards:** Verified contributions earn points, powering the global **Leaderboard**.
-
-### ⚙️ Technical Highlights
-* **FastAPI:** Async, high-performance Python backend.
-* **PostgreSQL:** Stable, scalable relational storage.
-* **Cloudinary:** Efficient image hosting and transformation.
-* **Argon2:** Strong password hashing.
-* **Eager Loading:** Prevents N+1 query issues for high-traffic scenarios.
+> **🚀 Live Deployment:** This project's backend is currently hosted on Railway. Due to free tier limitations on the main account, deployment is managed through an alternate repository. View the live backend deployment and configuration details at: **[https://github.com/Devil-tech828/env-El-rvce.git](https://github.com/Devil-tech828/env-El-rvce.git)**
 
 ---
 
-## 📂 Project Structure
+## 📱 What Can You Do?
 
-```text
-backend/
-├── main.py              # Entry point and router setup
-├── database.py          # Async DB connection (PostgreSQL/SQLite) with SSL
-├── models.py            # SQLAlchemy models (Users, Posts, Comments)
-├── schemas.py           # Pydantic validation & response models
-├── crud.py              # Database operations (Create/Read/Update)
-├── auth_utils.py        # JWT generation, Argon2 hashing, OAuth2 flows
-├── requirements.txt     # Python dependencies
-├── Procfile             # Deployment config (Railway/Heroku)
-└── routers/             # API modules by feature
-    ├── auth.py          # Login & registration
-    ├── posts.py         # Tasks, proofs, approval lifecycle
-    ├── users.py         # Profiles, stats, leaderboard
-    ├── comments.py      # Task discussions
-    └── images.py        # Cloudinary upload wrapper
+### For Issue Reporters
+- **Report Problems:** Snap a photo of environmental issues (garbage, debris, etc.)
+- **Add Location:** Automatically capture GPS coordinates for precise location
+- **Track Progress:** Monitor your reported tasks through approval to completion
+- **Community Impact:** See your contributions making a real difference
+
+### For Volunteers
+- **Find Tasks:** Browse all open tasks on an interactive map view
+- **Take Action:** Choose tasks based on your location and availability
+- **Submit Proof:** Upload before/after photos once you've completed the cleanup
+- **Earn Recognition:** Gain points for verified contributions and climb the leaderboard
+
+### Gamification & Community
+- **Points System:** Earn 50 points for each verified cleanup task
+- **Global Leaderboard:** Compete with other community members
+- **Task Comments:** Discuss and coordinate with others on specific tasks
+- **Real-time Updates:** See live status changes as tasks progress
+
+---
+
+## 🏗️ Architecture Overview
+
+```
+📦 Community Task Force App
+├── 🔧 backend/              # FastAPI REST API
+│   ├── main.py              # Application entry point
+│   ├── database.py          # PostgreSQL/SQLite async connection
+│   ├── models.py            # Database schema (Users, Posts, Comments)
+│   ├── schemas.py           # Pydantic validation models
+│   ├── crud.py              # Database operations
+│   ├── auth_utils.py        # JWT auth & Argon2 hashing
+│   └── routers/             # API endpoints by feature
+│       ├── auth.py          # Login & registration
+│       ├── posts.py         # Task lifecycle management
+│       ├── users.py         # Profiles & leaderboard
+│       ├── comments.py      # Task discussions
+│       └── images.py        # Cloudinary integration
+│
+└── 📱 flutter_code/         # Flutter mobile app
+    └── (See flutter_code/README.md for details)
 ```
 
 ---
 
-## 🛠️ Local Setup
+## 🚀 Quick Start Guide
+
+### Prerequisites
+
+**Backend Requirements:**
+- Python 3.12+
+- PostgreSQL (for production) or SQLite (for local development)
+- Cloudinary account (for image hosting)
+
+**Frontend Requirements:**
+- Flutter SDK 3.0+
+- Dart 3.0+
+- Android Studio / Xcode (for mobile development)
+
+---
+
+## 🔧 Backend Setup
 
 ### 1. Clone the Repository
 
@@ -53,13 +77,16 @@ git clone <your-repo-url>
 cd backend
 ```
 
-### 2. Create a Virtual Environment
+### 2. Create Virtual Environment
 
 ```bash
+# Create virtual environment
 python -m venv venv
-# Windows
+
+# Activate it
+# Windows:
 venv\Scripts\activate
-# Mac/Linux
+# macOS/Linux:
 source venv/bin/activate
 ```
 
@@ -69,68 +96,214 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Environment Variables
+### 4. Configure Environment Variables
 
-Create a `.env` file in `backend/`:
+Create a `.env` file in the `backend/` directory:
 
 ```ini
-# --- Database ---
-# Local (SQLite)
+# Database Configuration
+# For local development (SQLite):
 DATABASE_URL=sqlite+aiosqlite:///./local_test.db
-# Production (PostgreSQL)
-# DATABASE_URL=postgresql+asyncpg://user:pass@host:port/dbname
 
-# --- Security ---
-SECRET_KEY=your_random_secret_key
+# For production (PostgreSQL):
+# DATABASE_URL=postgresql+asyncpg://user:password@host:port/database
 
-# --- Cloudinary ---
-CLOUDINARY_CLOUD_NAME=your_cloud
-CLOUDINARY_API_KEY=your_key
-CLOUDINARY_API_SECRET=your_secret
+# Security
+SECRET_KEY=your_very_secret_random_key_here_change_this
 
-# --- Mock Mode ---
-USE_MOCK_CLOUD=False
+# Cloudinary Image Hosting
+CLOUDINARY_CLOUD_NAME=your_cloud_name
+CLOUDINARY_API_KEY=your_api_key
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
-### 5. Run the Server
+**🔑 Important Notes:**
+- Generate a secure `SECRET_KEY` using: `openssl rand -hex 32`
+- Get Cloudinary credentials from: https://cloudinary.com/
+- For production, use PostgreSQL instead of SQLite
+
+### 5. Run the Backend Server
 
 ```bash
 uvicorn main:app --reload
 ```
 
-API lives at: **http://127.0.0.1:8000**
+The API will be available at: **http://127.0.0.1:8000**
+
+### 6. Test the API
+
+- **Swagger UI (Interactive):** http://127.0.0.1:8000/docs
+- **ReDoc (Documentation):** http://127.0.0.1:8000/redoc
+- **Health Check:** http://127.0.0.1:8000/
 
 ---
 
-## 📖 API Documentation
+## 📱 Frontend Setup
 
-FastAPI provides automatic interactive docs:
+See the **[Flutter Frontend README](./flutter_code/README.md)** for detailed setup instructions, including:
+- Flutter environment setup
+- Dependency installation
+- API endpoint configuration
+- Running on emulators and physical devices
+- Building for production
 
-* **Swagger UI:** `http://127.0.0.1:8000/docs`
-* **ReDoc:** `http://127.0.0.1:8000/redoc`
+---
 
-### Core Endpoints
+## 🔌 API Endpoints Reference
 
+### Authentication
 | Method | Endpoint | Description |
-|-------|----------|-------------|
-| `POST` | `/api/auth/register` | Register a new user |
-| `POST` | `/api/auth/token` | Login and receive JWT token |
-| `GET` | `/api/posts/` | View all open tasks |
-| `POST` | `/api/posts/` | Create a new task |
-| `POST` | `/api/posts/{id}/submit-proof` | Volunteer submits cleanup proof |
-| `POST` | `/api/posts/{id}/approve` | Owner approves and closes task |
-| `GET` | `/api/users/leaderboard` | View top contributors |
+|--------|----------|-------------|
+| `POST` | `/auth/register` | Register new user account |
+| `POST` | `/auth/token` | Login and receive JWT token |
+
+### Tasks (Posts)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/posts/` | Get all open tasks (paginated) |
+| `POST` | `/posts/` | Create a new task/issue report |
+| `POST` | `/posts/{id}/submit-proof` | Submit cleanup proof (volunteers) |
+| `POST` | `/posts/{id}/approve` | Approve proof and award points (task owner) |
+
+### Users
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/users/me` | Get current user's private profile |
+| `GET` | `/users/profile/stats` | Get dashboard stats and task history |
+| `GET` | `/users/leaderboard` | Get top 10 users by points |
+
+### Comments
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/comments/?post_id={id}` | Add comment to a task |
+| `GET` | `/comments/?post_id={id}` | Get all comments for a task |
+
+### Images
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/images/upload/` | Upload image to Cloudinary |
 
 ---
 
-## ☁️ Deployment (Railway)
+## ☁️ Deployment
 
-1. Connect GitHub repo to Railway.  
-2. Add a **PostgreSQL** service.  
-3. Add the backend service.  
-4. Set `DATABASE_URL` from the Postgres service.  
-5. Add all `CLOUDINARY_*` variables and `SECRET_KEY`.  
-6. Railway deploys automatically using the `Procfile`.
+### Railway (Recommended for Backend)
+
+> **📌 Note:** Due to Railway free tier limitations, this project's backend is currently deployed using an alternate account. You can view the live deployment details and configuration at: **[https://github.com/Devil-tech828/env-El-rvce.git](https://github.com/Devil-tech828/env-El-rvce.git)**
+
+**Standard Railway Deployment Steps:**
+
+1. **Create Railway Project:**
+   - Sign up at [Railway.app](https://railway.app)
+   - Connect your GitHub repository
+
+2. **Add PostgreSQL Database:**
+   - Click "New" → "Database" → "PostgreSQL"
+   - Railway will automatically set `DATABASE_URL`
+
+3. **Configure Backend Service:**
+   - Add the backend as a new service
+   - Set environment variables:
+     - `SECRET_KEY`
+     - `CLOUDINARY_CLOUD_NAME`
+     - `CLOUDINARY_API_KEY`
+     - `CLOUDINARY_API_SECRET`
+
+4. **Deploy:**
+   - Railway auto-deploys using the `Procfile`
+   - Your API will be live at: `https://your-app.railway.app`
+
+**Alternative Deployment Options:**
+- **Heroku:** Similar setup with Procfile support
+- **Render:** Free tier with PostgreSQL included
+- **DigitalOcean App Platform:** Scalable container deployment
+- **AWS EC2/Lightsail:** More control, requires manual configuration
+
+### Flutter App Deployment
+
+See the [Flutter README](./flutter_code/README.md) for:
+- Building APK/IPA files
+- Publishing to Google Play Store
+- Publishing to Apple App Store
 
 ---
 
+## 🔐 Security Features
+
+- **Argon2 Password Hashing:** Industry-standard password security
+- **JWT Authentication:** Stateless, scalable token-based auth
+- **HTTPS/SSL Support:** Secure data transmission
+- **CORS Configuration:** Controlled cross-origin access
+- **Input Validation:** Pydantic schema validation on all endpoints
+
+---
+
+## 🛠️ Technology Stack
+
+### Backend
+- **FastAPI** - Modern async Python web framework
+- **PostgreSQL** - Robust relational database
+- **SQLAlchemy** - Async ORM with eager loading
+- **Cloudinary** - Cloud-based image hosting and optimization
+- **Argon2** - Password hashing algorithm
+- **JWT** - JSON Web Token authentication
+
+### Frontend
+- **Flutter** - Cross-platform mobile framework
+- **Dart** - Programming language
+- (See flutter_code/README.md for complete list)
+
+---
+
+## 📊 Database Schema
+
+### Users
+- `id`, `username`, `email`, `hashed_password`
+- `points` (gamification)
+- `created_at`
+
+### Posts (Tasks)
+- `id`, `image_url`, `image_public_id`, `caption`
+- `latitude`, `longitude` (GPS coordinates)
+- `status` (open, pending, completed)
+- `proof_image_url` (volunteer's submission)
+- `author_id`, `resolved_by_id`
+
+### Comments
+- `id`, `content`, `created_at`
+- `author_id`, `post_id`
+
+### Likes
+- `id`, `user_id`, `post_id`
+
+---
+
+## 🐛 Troubleshooting
+
+### Common Backend Issues
+
+**Database Connection Errors:**
+```bash
+# Check if DATABASE_URL is set correctly
+echo $DATABASE_URL
+
+# For PostgreSQL, ensure SSL context is configured
+# (Already handled in database.py)
+```
+
+**Cloudinary Upload Failures:**
+- Verify credentials in `.env` file
+- Check image file size (max 10MB recommended)
+- Ensure internet connection is stable
+
+**Port Already in Use:**
+```bash
+# Change port in uvicorn command
+uvicorn main:app --reload --port 8001
+```
+
+### Common Frontend Issues
+
+See [Flutter README](./flutter_source_code/README.md) for mobile-specific troubleshooting.
+
+---
