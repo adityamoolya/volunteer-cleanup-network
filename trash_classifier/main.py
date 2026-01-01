@@ -56,8 +56,12 @@ async def predict(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# # --- Run with uvicorn ---
-# if __name__ == "__main__":
-   
-#     port = int(os.environ.get("PORT", 8080))
-#     uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+
+@app.get("/")
+def root():
+    return{"trash classifier is UP"}
+
+
+if __name__ == "__main__":
+    print("http://127.0.0.1:6969") #this should produce a link fir microservice
+    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=True)

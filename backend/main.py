@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
+import uvicorn
 
 from database import engine, Base
 from routers import auth, posts, comments, images, users
@@ -39,9 +40,21 @@ app.include_router(users.router)    # handles users data and stats
 app.include_router(posts.router)   # handles the posts router
 app.include_router(comments.router) # self explainatory ig
 app.include_router(images.router) #uploads images to cloudinary
+'''TODO : in /images router use TRASH_CLASSIFIER microservice 
+        to judge how muh points the user gets, based on the type 
+        of trash they post  
+'''
 #checks if api is up or not
 @app.get("/", tags=["Health Check"])
 def read_root():
     return {"message": "Community App API is running"}
 
-#seem good
+if __name__ == "__main__":
+    print("http://127.0.0.1:8080") #this should produce a link
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=8080,
+        reload=True
+    )
+    

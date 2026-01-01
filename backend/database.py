@@ -16,6 +16,15 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
     logger.critical("DATABASE_URL not found. Please check your .env file.")
     raise ValueError("No DATABASE_URL found.")
+#making sure async drivers are used 
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL=DATABASE_URL.replace("postgresql://","postgresql+asyncpg://",1)
+
+elif "sqlite" in DATABASE_URL:
+     
+    print("LOCAL SQLITE DATABASE IS BEING USED")
+    DATABASE_URL = DATABASE_URL.replace("sqlite://","sqlite+aiosqlite://",1)
+       
 
 # --- FIX: SSL CONFIGURATION ---
 connect_args = {}
