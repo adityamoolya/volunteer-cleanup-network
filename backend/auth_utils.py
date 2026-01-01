@@ -27,7 +27,7 @@ pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # --- 2. OAUTH CONFIG ---
 # This specific URL fixes the "Authorize" button in Swagger UI
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)

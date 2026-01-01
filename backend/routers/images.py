@@ -1,5 +1,7 @@
 # backend/routers/images.py
 
+from urllib.parse import urljoin 
+import httpx
 import os
 import cloudinary
 import cloudinary.uploader
@@ -17,9 +19,10 @@ router = APIRouter(
 )
 
 # Check for Test Mode
-# USE_MOCK_CLOUD = os.getenv("USE_MOCK_CLOUD") == "True"
+USE_MOCK_CLOUD = os.getenv("USE_MOCK_CLOUD") == "True"
+CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
+CLASSIFIER_MICORSERVICE = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_url")
 
-# Only configure if NOT in mock mode
 cloudinary.config(
       cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"),
       api_key = os.getenv("CLOUDINARY_API_KEY"),
@@ -36,7 +39,7 @@ async def upload_image(
 
     # --- MOCK MODE: Bypass Cloudinary completely ---
     # if USE_MOCK_CLOUD:
-    #     print(f"⚠️ MOCK UPLOAD: Pretending to upload {file.filename}")
+    #     print(f" MOCK UPLOAD: Pretending to upload {file.filename}")
     #     # Return a fake URL (random Lorem Picsum image or similar)
     #     fake_id = str(uuid.uuid4())
     #     return {
@@ -59,14 +62,41 @@ async def upload_image(
             processed_image_io,
             folder="community_app_posts"
         )
-        
+        judgement = await calculate_points(upload_result.get("secure_url"),upload_result.get("public_id"))
         return {
             "message": "Image uploaded successfully!",
             "url": upload_result.get("secure_url"),
-            "public_id": upload_result.get("public_id")
+            "public_id": upload_result.get("public_id"),
+            "judgement": judgement
         }
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error uploading file: {e}"
+        )
+    
+async def calculate_points(image_url: str, public_id: str):
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            response = await client.post(
+                CLASSIFIER_MICORSERVICE,
+                json={
+                    "image_url": image_url
+                }
+            )
+
+        response.raise_for_status()  # raises if http respomse 4xx / 5xx , does nothing for 200
+        return response.json()       # return microservice response
+
+    except httpx.RequestError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Classifier is unreachble: {e}"
+        )
+        
+
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Classifier is unreachble but bad response {e}"
         )

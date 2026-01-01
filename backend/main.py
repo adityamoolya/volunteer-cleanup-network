@@ -44,6 +44,8 @@ app.include_router(images.router) #uploads images to cloudinary
         to judge how muh points the user gets, based on the type 
         of trash they post  
 '''
+
+
 #checks if api is up or not
 @app.get("/", tags=["Health Check"])
 def read_root():
