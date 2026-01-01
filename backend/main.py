@@ -47,7 +47,7 @@ app.include_router(images.router) #uploads images to cloudinary
 #checks if api is up or not
 @app.get("/", tags=["Health Check"])
 def read_root():
-    return {"message": "Community App API is running"}
+    return {"message": "App API is running"}
 
 if __name__ == "__main__":
     print("http://127.0.0.1:8080") #this should produce a link

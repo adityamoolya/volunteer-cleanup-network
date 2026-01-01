@@ -42,7 +42,7 @@ class CommentBase(BaseModel):
     content: str
 
 class CommentCreate(CommentBase):
-    pass
+    content: str
 
 class Comment(CommentBase):
     id: int

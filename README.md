@@ -1,4 +1,4 @@
-# 🌍 CleanQuest - Community Cleanup Platform
+#  CleanQuest - Community Cleanup Platform
 
 A gamified community-driven platform where citizens can report environmental issues and volunteers can take action to resolve them. Built with **FastAPI backend**, **PostgreSQL database**, and **Flutter mobile frontend**—designed for speed, clarity, and real-world impact.
 
