@@ -16,4 +16,4 @@ EXPOSE 8080
 
 # command to run the application 
 #$PORT is used soo the cloud provider can inject whichever port they are having
-CMD ["sh","-c","uvicorn main:app --host 0.0.0.0 --port $PORT --reload"]
+CMD ["sh","-c","uvicorn main:app --host 0.0.0.0 --port 8080 --reload"]
