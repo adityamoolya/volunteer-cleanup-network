@@ -1,8 +1,4 @@
-frontend/
 env12/
-backend/__pycache__/
-trash_classifier/__pycache__/
-backend/.env
-fronend_final/node_modules/
-/backend/test.db
-/backend/routers/__pycache__/
+**/__pycache__/
+**/.env
+**.db

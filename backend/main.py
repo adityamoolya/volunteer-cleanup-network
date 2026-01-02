@@ -3,8 +3,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 import uvicorn
-
+from pathlib import Path
+from dotenv import load_dotenv
 from database import engine, Base
+
+#makes .env vars avaible to router files also
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env")
+
+
 from routers import auth, posts, comments, images, users
 
 # --- Lifespan event for startup ---

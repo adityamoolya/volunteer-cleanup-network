@@ -21,8 +21,9 @@ router = APIRouter(
 # Check for Test Mode
 USE_MOCK_CLOUD = os.getenv("USE_MOCK_CLOUD") == "True"
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
-CLASSIFIER_MICORSERVICE = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_url")
-
+print(CLASSIFIER_MICORSERVICE+"============================================================")
+CLASSIFIER_MICORSERVICE = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_urls")
+print(CLASSIFIER_MICORSERVICE+"============================================================")
 cloudinary.config(
       cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME"),
       api_key = os.getenv("CLOUDINARY_API_KEY"),
@@ -62,6 +63,7 @@ async def upload_image(
             processed_image_io,
             folder="community_app_posts"
         )
+        print("CLODUINARY SEEMS FINE")
         judgement = await calculate_points(upload_result.get("secure_url"),upload_result.get("public_id"))
         return {
             "message": "Image uploaded successfully!",
@@ -98,5 +100,5 @@ async def calculate_points(image_url: str, public_id: str):
     except httpx.HTTPStatusError as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Classifier is unreachble but bad response {e}"
+            detail=f"Classifier is but bad response {e}"
         )
