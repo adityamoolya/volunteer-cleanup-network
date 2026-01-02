@@ -17,12 +17,11 @@ import schemas
 logger = logging.getLogger(__name__)
 
 # Env vars
-SECRET_KEY = os.getenv("SECRET_KEY", "a_very_secret_key_for_local_dev")
+SECRET_KEY = os.getenv("SECRET_KEY") #removed deafult value
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # --- 1. PASSWORD HASHING (Argon2) ---
-# We use argon2 to avoid the 'password too long' crash you saw earlier
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # --- 2. OAUTH CONFIG ---

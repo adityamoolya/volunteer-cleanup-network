@@ -18,7 +18,9 @@ if not DATABASE_URL:
     raise ValueError("No DATABASE_URL found.")
 #making sure async drivers are used 
 if DATABASE_URL.startswith("postgresql://"):
+    # print(DATABASE_URL+"=======-==========================================")
     DATABASE_URL=DATABASE_URL.replace("postgresql://","postgresql+asyncpg://",1)
+    # print(DATABASE_URL+"--------------------------------------------------")
 
 elif "sqlite" in DATABASE_URL:
      

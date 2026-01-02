@@ -37,18 +37,18 @@ async def upload_image(
 ):
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File provided is not an image.")
-
-    # --- MOCK MODE: Bypass Cloudinary completely ---
-    # if USE_MOCK_CLOUD:
-    #     print(f" MOCK UPLOAD: Pretending to upload {file.filename}")
-    #     # Return a fake URL (random Lorem Picsum image or similar)
-    #     fake_id = str(uuid.uuid4())
-    #     return {
-    #         "message": "Mock Image uploaded successfully!",
-    #         "url": f"https://picsum.photos/seed/{fake_id}/800/600", 
-    #         "public_id": f"mock_id_{fake_id}"
-    #     }
-    # # -----------------------------------------------
+    if USE_MOCK_CLOUD:
+        print(f" MOCK UPLOAD: Pretending to upload {file.filename}")
+        # Return a fake URL 
+        return {    #made up values
+            "message": "Mock Image uploaded successfully!",
+            "url": f"https://res.cloudinary.com/dcgsvilo0/image/upload/v1767363674/community_app_posts/taqhlxcaoqozzhd2xgqw.webp", 
+            "public_id": "mock_id_fake_id",
+            "judgement" :{ "predicted_class": "paper", 
+                            "confidence": "33.84%", 
+                            "recommended_dustbin":  " Blue Dustbin (Dry Waste / Recyclable)",
+                            "points": 5 } 
+        }
 
     try:
         contents = await file.read()

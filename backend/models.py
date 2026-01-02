@@ -38,6 +38,9 @@ class Post(Base):
     caption = Column(Text, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+
+    predicted_class = Column(String(50), nullable=True)  #added to handle ML micorservice result
+    points = Column(Integer, default=0)
     
     status = Column(Enum(TaskStatus), default=TaskStatus.OPEN)
     proof_image_url = Column(String(500), nullable=True)

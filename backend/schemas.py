@@ -67,6 +67,9 @@ class PostBase(BaseModel):
     latitude: float
     longitude: float
 
+    predicted_class: str  #added to handle ML micorservice result
+    points: int
+
 class PostCreate(PostBase):
     pass
 

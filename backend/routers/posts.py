@@ -52,6 +52,8 @@ async def create_request(
         caption=post_data.caption,
         latitude=post_data.latitude,
         longitude=post_data.longitude,
+        predicted_class=post_data.predicted_class,  #added to handle ML micorservice result
+        points=post_data.points,
         author_id=current_user.id,
         status=models.TaskStatus.OPEN
     )
@@ -129,7 +131,8 @@ async def approve_and_close(
         raise HTTPException(status_code=400, detail="No pending proof to approve")
 
     if post.resolved_by:
-        post.resolved_by.points += 50
+        # post.resolved_by.points += 50
+        post.resolved_by.points += post.points
     
     post.status = models.TaskStatus.COMPLETED
     
