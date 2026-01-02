@@ -59,6 +59,17 @@ async def process_post_ml(post_id: int, image_url: str):
 
     except Exception as e:
         print(f"[Background-----] ML Error: {e}")
+    except Exception as e:
+        print(f"[Background------] ML Error: {e}")
+        
+        # FAILSAFE
+        async with AsyncSessionLocal() as db:
+            result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+            post = result.scalars().first()
+            if post:
+                post.predicted_class = "ERROR" # <--- Give user a hint
+                post.points = 0
+                await db.commit()
 
 # CREATE REQUEST , tb accessed by author only
 @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
@@ -229,6 +240,45 @@ async def approve_and_close(
     
     await db.commit()
     return {"message": "Task approved! Points awarded."}
+
+
+''' just in case ML spits wrong result we give author option 
+    to change it manually,  
+    it calls this enpoint passing post id and new cat
+'''
+@router.patch("/{post_id}", response_model=schemas.Post)
+async def update_post(
+    post_id: int,
+    post_update: schemas.PostUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    #fetch post
+    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    #ownership check
+    if post.author_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized to edit this post")
+
+    #prevent edit after it's solved
+    if post.status != models.TaskStatus.OPEN:
+        raise HTTPException(status_code=400, detail="Cannot edit a task that is already in progress/completed")
+
+    #apply updates
+    if post_update.predicted_class is not None:
+        post.predicted_class = post_update.predicted_class
+    if post_update.points is not None:
+        post.points = post_update.points
+    if post_update.caption is not None:
+        post.caption = post_update.caption
+
+    await db.commit()
+    await db.refresh(post)
+    return post
 
 # async def calculate_points(image_url: str, public_id: str):
 #     try:
