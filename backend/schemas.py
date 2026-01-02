@@ -67,11 +67,12 @@ class PostBase(BaseModel):
     latitude: float
     longitude: float
 
-    predicted_class: str  #added to handle ML micorservice result
-    points: int
+    # predicted_class: str  #added to handle ML micorservice result
+    # points: int
 
 class PostCreate(PostBase):
-    pass
+    predicted_class: Optional[str] = "Processing..."
+    points: Optional[int] = 0
 
 class Post(PostBase):
     id: int
@@ -80,12 +81,12 @@ class Post(PostBase):
     created_at: datetime
     author_id: int
     resolved_by_id: Optional[int] = None
-    
+    predicted_class: Optional[str] = None 
+    points: int
     author: Optional[UserPublic] = None     # Use safe user
     resolved_by: Optional[UserPublic] = None # Use safe user
-    
     comments: List[Comment] = []
     likes: List[Like] = []
 
-    class Config:
+class Config:
         from_attributes = True

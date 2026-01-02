@@ -2,3 +2,5 @@ env12/
 **/__pycache__/
 **/.env
 **.db
+**/envirormentEl.session.sql
+**/.vscode/
