@@ -24,7 +24,7 @@ if DATABASE_URL.startswith("postgresql://"):
 
 elif "sqlite" in DATABASE_URL:
      
-    print("LOCAL SQLITE DATABASE IS BEING USED")
+    logger.warning("LOCAL SQLITE DATABASE IS BEING USED")
     DATABASE_URL = DATABASE_URL.replace("sqlite://","sqlite+aiosqlite://",1)
        
 

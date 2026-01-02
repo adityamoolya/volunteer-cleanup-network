@@ -6,11 +6,17 @@ import uvicorn
 from pathlib import Path
 from dotenv import load_dotenv
 from database import engine, Base
-
 #makes .env vars avaible to router files also
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
+import logging
 
+# CONFIGURE logger
+logging.basicConfig(
+    level=logging.INFO, # Capture everything from INFO and above (WARNING, ERROR)
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+)
+logger = logging.getLogger(__name__)
 
 from routers import auth, posts, comments, images, users
 
@@ -59,7 +65,7 @@ def read_root():
     return {"message": "App API is running"}
 
 if __name__ == "__main__":
-    print("http://127.0.0.1:8080") #this should produce a link
+    logger.info("http://127.0.0.1:8080") #this should produce a link
     uvicorn.run(
         "main:app",
         host="0.0.0.0",

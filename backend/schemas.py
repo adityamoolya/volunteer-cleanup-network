@@ -74,6 +74,13 @@ class PostCreate(PostBase):
     predicted_class: Optional[str] = "Processing..."
     points: Optional[int] = 0
 
+
+class PostUpdate(BaseModel):
+    predicted_class: Optional[str] = None
+    points: Optional[int] = None
+    caption: Optional[str] = None
+
+    
 class Post(PostBase):
     id: int
     status: TaskStatus

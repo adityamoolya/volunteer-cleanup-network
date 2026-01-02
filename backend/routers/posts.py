@@ -1,7 +1,7 @@
 # backend/routers/posts.py
 
 from urllib.parse import urljoin
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload 
@@ -12,12 +12,12 @@ import schemas, models
 from database import get_db
 from auth_utils import get_current_active_user
 import os
+import logging
+logger = logging.getLogger(__name__)
+
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
-print(CLASSIFIER_MICORSERVICE+"============================================================")
 ml_url = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_urls")
-print(CLASSIFIER_MICORSERVICE+"============================================================")
-
-
+logger.info(CLASSIFIER_MICORSERVICE)
 
 router = APIRouter(
     prefix="/posts",
@@ -39,7 +39,7 @@ async def process_post_ml(post_id: int, image_url: str):
         if resp.status_code == 200:
             data = resp.json()
             #extract data
-            print("ML SERVICE RESPONSE",data,"=-=-=-=--===========-=-=====--=----------------=") 
+            logger.info("ML SERVICE RESPONSE",data) 
             pred_class = data.get("predicted_class", "Unknown") 
             #if cat is misssing , defaults to unknown , points is converted to integer
             points = int(data.get("points", 0))         
@@ -53,14 +53,14 @@ async def process_post_ml(post_id: int, image_url: str):
                     post.predicted_class = pred_class
                     post.points = points
                     await db.commit()
-                    print(f"[Background-----] Post {post_id} updated: {pred_class} ({points} pts)")
+                    logger.info(f"[Background] Post {post_id} updated: {pred_class} ({points} pts)")
         else:
-            print(f" [Background-----] ML Service returned {resp.status_code}")
+            logger.warning(f" [Background-----] ML Service returned {resp.status_code}")
 
     except Exception as e:
-        print(f"[Background-----] ML Error: {e}")
+        logger.error(f"[Background-----] ML Error: {e}")
     except Exception as e:
-        print(f"[Background------] ML Error: {e}")
+        logger.error(f"[Background------] ML Error: {e}")
         
         # FAILSAFE
         async with AsyncSessionLocal() as db:

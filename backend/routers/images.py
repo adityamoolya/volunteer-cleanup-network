@@ -6,9 +6,10 @@ import cloudinary.uploader
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from PIL import Image
 import io
-
 from auth_utils import get_current_active_user
 import schemas
+import logging
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/images",
@@ -32,7 +33,7 @@ async def upload_image(
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File provided is not an image.")
     if USE_MOCK_CLOUD:
-        print(f" MOCK UPLOAD: Pretending to upload {file.filename}")
+        logger.warning(f" MOCK UPLOAD: Pretending to upload {file.filename}")
         # Return a fake URL 
         return {    #made up values
             "message": "Mock Image uploaded successfully!",
@@ -57,7 +58,7 @@ async def upload_image(
             processed_image_io,
             folder="community_app_posts"
         )
-        print("CLODUINARY SEEMS FINE")
+        # print("CLODUINARY SEEMS FINE")
         # judgement = await calculate_points(upload_result.get("secure_url"),upload_result.get("public_id"))
         return {
             "message": "Image uploaded successfully!",
