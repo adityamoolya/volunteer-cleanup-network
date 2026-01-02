@@ -1,4 +1,4 @@
-# import os
+import os
 from io import BytesIO
 import uvicorn
 import numpy as np
@@ -11,7 +11,10 @@ import httpx
 app = FastAPI(title="Waste Classifier API")
 
 # load model 
-MODEL_PATH = 'waste_classifier_model.h5'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(BASE_DIR, "waste_classifier_model.h5")
+
+# model = load_model(MODEL_PATH)
 model = tf.keras.models.load_model(MODEL_PATH)
 CLASS_NAMES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
 DUSTBIN_MAP = {
