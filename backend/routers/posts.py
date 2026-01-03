@@ -75,7 +75,7 @@ async def process_post_ml(post_id: int, image_url: str):
 
 # CREATE REQUEST , tb accessed by author only
 @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
-async def create_request(
+async def author_create_request(
     post_data: schemas.PostCreate,
     background_tasks: BackgroundTasks, # inject backgroundtasks
     db: AsyncSession = Depends(get_db),
@@ -84,7 +84,7 @@ async def create_request(
     #create Post with "Processing" state
     new_post = models.Post(
         image_url=post_data.image_url,
-        image_public_id=post_data.image_public_id,
+        # image_public_id=post_data.image_public_id,
         caption=post_data.caption,
         latitude=post_data.latitude,
         longitude=post_data.longitude,
@@ -183,65 +183,65 @@ async def create_request(
     
     return loaded_post
 
-# --- 3. SUBMIT PROOF ---
-@router.post("/{post_id}/submit-proof")
-async def submit_proof(
-    post_id: int,
-    proof_image_url: str, 
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
-    post = result.scalars().first()
+# # --- 3. SUBMIT PROOF ---
+# @router.post("/{post_id}/submit-proof")
+# async def submit_proof(
+#     post_id: int,
+#     proof_image_url: str, 
+#     db: AsyncSession = Depends(get_db),
+#     current_user: models.User = Depends(get_current_active_user)
+# ):
+#     result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+#     post = result.scalars().first()
 
-    if not post:
-        raise HTTPException(status_code=404, detail="Task not found")
+#     if not post:
+#         raise HTTPException(status_code=404, detail="Task not found")
 
-    if post.status != models.TaskStatus.OPEN:
-        raise HTTPException(status_code=400, detail="Task is not open for contributions")
+#     if post.status != models.TaskStatus.OPEN:
+#         raise HTTPException(status_code=400, detail="Task is not open for contributions")
     
-    if post.author_id == current_user.id:
-         raise HTTPException(status_code=400, detail="You cannot claim your own task")
+#     if post.author_id == current_user.id:
+#          raise HTTPException(status_code=400, detail="You cannot claim your own task")
 
-    post.status = models.TaskStatus.PENDING_VERIFICATION
-    post.resolved_by_id = current_user.id
-    post.proof_image_url = proof_image_url
+#     post.status = models.TaskStatus.PENDING_VERIFICATION
+#     post.resolved_by_id = current_user.id
+#     post.proof_image_url = proof_image_url
     
-    await db.commit()
-    return {"message": "Proof submitted! Waiting for author approval."}
+#     await db.commit()
+#     return {"message": "Proof submitted! Waiting for author approval."}
 
 # --- 4. APPROVE & CLOSE ---
-@router.post("/{post_id}/approve")
-async def approve_and_close(
-    post_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    query = (
-        select(models.Post)
-        .options(selectinload(models.Post.resolved_by)) 
-        .where(models.Post.id == post_id)
-    )
-    result = await db.execute(query)
-    post = result.scalars().first()
+# @router.post("/{post_id}/approve")
+# async def approve_and_close(
+#     post_id: int,
+#     db: AsyncSession = Depends(get_db),
+#     current_user: models.User = Depends(get_current_active_user)
+# ):
+#     query = (
+#         select(models.Post)
+#         .options(selectinload(models.Post.resolved_by)) 
+#         .where(models.Post.id == post_id)
+#     )
+#     result = await db.execute(query)
+#     post = result.scalars().first()
 
-    if not post:
-        raise HTTPException(status_code=404, detail="Task not found")
+#     if not post:
+#         raise HTTPException(status_code=404, detail="Task not found")
 
-    if post.author_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Only the author can approve this")
+#     if post.author_id != current_user.id:
+#         raise HTTPException(status_code=403, detail="Only the author can approve this")
 
-    if post.status != models.TaskStatus.PENDING_VERIFICATION:
-        raise HTTPException(status_code=400, detail="No pending proof to approve")
+#     if post.status != models.TaskStatus.PENDING_APPROVAL:
+#         raise HTTPException(status_code=400, detail="No pending proof to approve")
 
-    if post.resolved_by:
-        # post.resolved_by.points += 50
-        post.resolved_by.points += post.points
+#     if post.resolved_by:
+#         # post.resolved_by.points += 50
+#         post.resolved_by.points += post.points
     
-    post.status = models.TaskStatus.COMPLETED
+#     post.status = models.TaskStatus.COMPLETED
     
-    await db.commit()
-    return {"message": "Task approved! Points awarded."}
+#     await db.commit()
+#     return {"message": "Task approved! Points awarded."}
 
 
 ''' just in case ML spits wrong result we give author option 
@@ -249,7 +249,7 @@ async def approve_and_close(
     it calls this enpoint passing post id and new cat
 '''
 @router.patch("/{post_id}", response_model=schemas.Post)
-async def update_post(
+async def author_update_post(
     post_id: int,
     post_update: schemas.PostUpdate,
     db: AsyncSession = Depends(get_db),
@@ -325,10 +325,11 @@ async def verify_volunteer_post_ml(post_id: int, image_url: str):
 async def start_cleanup_work(
     post_id: int,
     background_tasks: BackgroundTasks,
-    start_image_url: str = Body(..., embed=True), # expect JSON: {"start_image_url": "url"}
+    start_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
+    # 1. Fetch & Verify
     result = await db.execute(select(models.Post).where(models.Post.id == post_id))
     post = result.scalars().first()
     
@@ -348,10 +349,24 @@ async def start_cleanup_work(
     #triggers background verification
     background_tasks.add_task(verify_volunteer_post_ml, post.id, start_image_url)
     
-    return post
+    #CRITICAL FIX: Re-fetch with relationships
+    # (without this, FastAPI crashes when trying to serialize 'author', 'comments', etc.)
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer) # Load volunteer too
+        )
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
-#SUBMIT PROOF (Clock Out) by volunteer
+# SUBMIT PROOF (Clock Out) 
 @router.post("/{post_id}/submit_proof", response_model=schemas.Post)
 async def submit_cleanup_proof(
     post_id: int,
@@ -372,6 +387,7 @@ async def submit_cleanup_proof(
 
     #clculate Duration
     end_time = datetime.now(timezone.utc)
+    #ensures start_time is aware
     start_time = post.volunteer_start_timestamp.replace(tzinfo=timezone.utc) if post.volunteer_start_timestamp else None
     
     duration_min = 0
@@ -386,18 +402,32 @@ async def submit_cleanup_proof(
     post.cleanup_duration_minutes = duration_min
     
     await db.commit()
-    return post
+    
+    #CRITICAL FIX: Re-fetch
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer)
+        )
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
 
 
-#APPROVE & PAY (Resolution)
+# APPROVE & PAY (Resolution) 
 @router.post("/{post_id}/approve", response_model=schemas.Post)
 async def approve_work(
     post_id: int,
-    final_points: int = Body(..., embed=True), # Expect JSON: {"final_points": 50}
+    final_points: int = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    #need to load the volunteer relationship to update their points
+    # Load volunteer immediately to update points
     query = (
         select(models.Post)
         .options(selectinload(models.Post.volunteer)) 
@@ -413,13 +443,25 @@ async def approve_work(
     if post.status != models.TaskStatus.PENDING_APPROVAL:
          raise HTTPException(status_code=400, detail="Task is not pending approval")
          
-    #update the Post
     post.status = models.TaskStatus.COMPLETED
-    post.points = final_points # Set to the final agreed amount
+    post.points = final_points 
     
-    #Transfer Points to Volunteer
     if post.volunteer:
         post.volunteer.points += final_points
     
     await db.commit()
-    return post
+
+    #CRITICAL FIX: Re-fetch
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer)
+        )
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()

@@ -8,8 +8,10 @@ import enum
 
 class TaskStatus(str, enum.Enum):
     OPEN = "open"
-    PENDING_VERIFICATION = "pending"
-    COMPLETED = "completed"
+    IN_PROGRESS = "in_progress"       # volunteer is on site (Clocked In)
+    PENDING_APPROVAL = "pending"      # work done, waiting for author (Clocked Out)
+    COMPLETED = "completed"           # points paid
+    CANCELLED = "cancelled"           # if volunteer decides to cancel 
 
 class User(Base):
     __tablename__ = "users"
@@ -97,9 +99,3 @@ class Like(Base):
     user = relationship("User", back_populates="likes")
     post = relationship("Post", back_populates="likes")
 
-class TaskStatus(str, enum.Enum):
-    OPEN = "open"
-    IN_PROGRESS = "in_progress"       # volunteer is on site (Clocked In)
-    PENDING_APPROVAL = "pending"      # work done, waiting for author (Clocked Out)
-    COMPLETED = "completed"           # points paid
-    CANCELLED = "cancelled"           # if volunteer decides to cancel 
