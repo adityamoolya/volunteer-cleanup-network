@@ -264,7 +264,6 @@ async def update_post(
     if post.author_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not authorized to edit this post")
 
-    #prevent edit after it's solved
     if post.status != models.TaskStatus.OPEN:
         raise HTTPException(status_code=400, detail="Cannot edit a task that is already in progress/completed")
 
@@ -277,9 +276,23 @@ async def update_post(
         post.caption = post_update.caption
 
     await db.commit()
-    await db.refresh(post)
-    return post
+    
+    #CRITICAL FIX: Re-fetch with relationships loaded
+    # We use the same query logic as 'get_feed' or 'create_request'
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by)
+        )
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    updated_post = result.scalars().first()
 
+    return updated_post
 # async def calculate_points(image_url: str, public_id: str):
 #     try:
 #         async with httpx.AsyncClient(timeout=20.0) as client:
