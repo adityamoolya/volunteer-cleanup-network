@@ -90,6 +90,16 @@ class Post(PostBase):
     resolved_by_id: Optional[int] = None
     predicted_class: Optional[str] = None 
     points: int
+
+    volunteer_id: Optional[int] = None
+    start_image_url: Optional[str] = None
+    end_image_url: Optional[str] = None
+    volunteer_start_timestamp: Optional[datetime] = None
+    volunteer_end_timestamp: Optional[datetime] = None
+    cleanup_duration_minutes: Optional[int] = None
+    verified_points: Optional[int] = None
+    volunteer: Optional[UserPublic] = None # To see who cleaned it
+
     author: Optional[UserPublic] = None     # Use safe user
     resolved_by: Optional[UserPublic] = None # Use safe user
     comments: List[Comment] = []
