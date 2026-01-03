@@ -1,7 +1,8 @@
 # backend/routers/posts.py
 
 from urllib.parse import urljoin
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
+from zoneinfo import ZoneInfo
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload 
@@ -12,6 +13,7 @@ import schemas, models
 from database import get_db
 from auth_utils import get_current_active_user
 import os
+from datetime import datetime, timezone
 import logging
 logger = logging.getLogger(__name__)
 
@@ -293,28 +295,131 @@ async def update_post(
     updated_post = result.scalars().first()
 
     return updated_post
-# async def calculate_points(image_url: str, public_id: str):
-#     try:
-#         async with httpx.AsyncClient(timeout=20.0) as client:
-#             response = await client.post(
-#                 CLASSIFIER_MICORSERVICE,
-#                 json={
-#                     "image_url": image_url
-#                 }
-#             )
 
-#         response.raise_for_status()  # raises if http respomse 4xx / 5xx , does nothing for 200
-#         return response.json()       # return microservice response
 
-#     except httpx.RequestError as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_502_BAD_GATEWAY,
-#             detail=f"Classifier is unreachble: {e}"
-#         )
-        
+#NEW BACKGROUND TASK: VERIFY VOLUNTEER PHOTO , phase1
+async def verify_volunteer_post_ml(post_id: int, image_url: str):
+    try:
+        async with httpx.AsyncClient() as client:
+            # call the same ML service to check the new photo
+            resp = await client.post(ml_url, json={"image_url": image_url}, timeout=30.0)
+            
+        if resp.status_code == 200:
+            data = resp.json()
+            points = int(data.get("points", 0))         
+            
+            async with AsyncSessionLocal() as db:
+                result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+                post = result.scalars().first()
+                if post:
+                    #we save this as "verified_points" for comparison later
+                    post.verified_points = points 
+                    await db.commit()
+                    logger.info(f"[Verification-----] Post {post_id} check: ML found {points} pts")
+    except Exception as e:
+        logger.error(f"[Verification-----] Error: {e}")
 
-#     except httpx.HTTPStatusError as e:
-#         raise HTTPException(
-#             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-#             detail=f"Classifier is but bad response {e}"
-#         )
+
+# START WORK (Clock In) by volunteer
+@router.post("/{post_id}/start_work", response_model=schemas.Post)
+async def start_cleanup_work(
+    post_id: int,
+    background_tasks: BackgroundTasks,
+    start_image_url: str = Body(..., embed=True), # expect JSON: {"start_image_url": "url"}
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
+    
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.status != models.TaskStatus.OPEN:
+        raise HTTPException(status_code=400, detail="Task is not open")
+
+    #update DB (Clock In)
+    post.status = models.TaskStatus.IN_PROGRESS
+    post.volunteer_id = current_user.id
+    post.start_image_url = start_image_url
+    post.volunteer_start_timestamp = datetime.now(ZoneInfo("Asia/Kolkata")) #can use a random timezone here,i used ist
+    
+    await db.commit()
+    
+    #triggers background verification
+    background_tasks.add_task(verify_volunteer_post_ml, post.id, start_image_url)
+    
+    return post
+
+
+#SUBMIT PROOF (Clock Out) by volunteer
+@router.post("/{post_id}/submit_proof", response_model=schemas.Post)
+async def submit_cleanup_proof(
+    post_id: int,
+    end_image_url: str = Body(..., embed=True), # Expect JSON: {"end_image_url": "..."}
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
+    
+    # Security Checks
+    if not post: 
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.volunteer_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Not authorized (You are not the volunteer)")
+    if post.status != models.TaskStatus.IN_PROGRESS:
+        raise HTTPException(status_code=400, detail="Task not in progress")
+
+    #clculate Duration
+    end_time = datetime.now(timezone.utc)
+    start_time = post.volunteer_start_timestamp.replace(tzinfo=timezone.utc) if post.volunteer_start_timestamp else None
+    
+    duration_min = 0
+    if start_time:
+        diff = end_time - start_time
+        duration_min = int(diff.total_seconds() / 60) # Minutes
+    
+    #update DB (Clock Out)
+    post.status = models.TaskStatus.PENDING_APPROVAL
+    post.end_image_url = end_image_url
+    post.volunteer_end_timestamp = end_time
+    post.cleanup_duration_minutes = duration_min
+    
+    await db.commit()
+    return post
+
+
+#APPROVE & PAY (Resolution)
+@router.post("/{post_id}/approve", response_model=schemas.Post)
+async def approve_work(
+    post_id: int,
+    final_points: int = Body(..., embed=True), # Expect JSON: {"final_points": 50}
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    #need to load the volunteer relationship to update their points
+    query = (
+        select(models.Post)
+        .options(selectinload(models.Post.volunteer)) 
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    post = result.scalars().first()
+    
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    if post.author_id != current_user.id:
+         raise HTTPException(status_code=403, detail="Only author can approve")
+    if post.status != models.TaskStatus.PENDING_APPROVAL:
+         raise HTTPException(status_code=400, detail="Task is not pending approval")
+         
+    #update the Post
+    post.status = models.TaskStatus.COMPLETED
+    post.points = final_points # Set to the final agreed amount
+    
+    #Transfer Points to Volunteer
+    if post.volunteer:
+        post.volunteer.points += final_points
+    
+    await db.commit()
+    return post
