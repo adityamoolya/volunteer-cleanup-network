@@ -1,309 +1,244 @@
-#  CleanQuest - Community Cleanup Platform
+# CleanQuest - Community Cleanup Platform
 
-A gamified community-driven platform where citizens can report environmental issues and volunteers can take action to resolve them. Built with **FastAPI backend**, **PostgreSQL database**, and **Flutter mobile frontend**—designed for speed, clarity, and real-world impact.
+A gamified community-driven platform for reporting environmental issues and coordinating cleanup efforts. Built with FastAPI, PostgreSQL, TensorFlow, and Flutter.
 
-> **🚀 Live Deployment:** This project's backend is currently hosted on Railway. Due to free tier limitations on the main account, deployment is managed through an alternate repository. View the live backend deployment and configuration details at: **[https://github.com/Devil-tech828/env-El-rvce.git](https://github.com/Devil-tech828/env-El-rvce.git)**
+## Tech Stack
 
----
+### Backend
+- **FastAPI** - Async Python web framework
+- **PostgreSQL** - Production database (SQLite for local development)
+- **SQLAlchemy** - Async ORM with relationship loading
+- **Argon2** - Password hashing
+- **JWT** - Token-based authentication
+- **Cloudinary** - Image hosting and optimization
 
-## 📱 What Can You Do?
+### Machine Learning Service
+- **TensorFlow** - Waste classification model
+- **MobileNetV2** - Pre-trained CNN for image recognition
+- **FastAPI** - Microservice API
 
-### For Issue Reporters
-- **Report Problems:** Snap a photo of environmental issues (garbage, debris, etc.)
-- **Add Location:** Automatically capture GPS coordinates for precise location
-- **Track Progress:** Monitor your reported tasks through approval to completion
-- **Community Impact:** See your contributions making a real difference
+### Frontend
+- **Flutter** - Cross-platform mobile framework
+- See [Flutter README](./flutter_code/README.md) for details
 
-### For Volunteers
-- **Find Tasks:** Browse all open tasks on an interactive map view
-- **Take Action:** Choose tasks based on your location and availability
-- **Submit Proof:** Upload before/after photos once you've completed the cleanup
-- **Earn Recognition:** Gain points for verified contributions and climb the leaderboard
-
-### Gamification & Community
-- **Points System:** Earn 50 points for each verified cleanup task
-- **Global Leaderboard:** Compete with other community members
-- **Task Comments:** Discuss and coordinate with others on specific tasks
-- **Real-time Updates:** See live status changes as tasks progress
-
----
-
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```
-📦 Community Task Force App
-├── 🔧 backend/              # FastAPI REST API
-│   ├── main.py              # Application entry point
-│   ├── database.py          # PostgreSQL/SQLite async connection
-│   ├── models.py            # Database schema (Users, Posts, Comments)
-│   ├── schemas.py           # Pydantic validation models
-│   ├── crud.py              # Database operations
-│   ├── auth_utils.py        # JWT auth & Argon2 hashing
-│   └── routers/             # API endpoints by feature
-│       ├── auth.py          # Login & registration
-│       ├── posts.py         # Task lifecycle management
-│       ├── users.py         # Profiles & leaderboard
-│       ├── comments.py      # Task discussions
-│       └── images.py        # Cloudinary integration
+CleanQuest/
+├── backend/                    # Main FastAPI application
+│   ├── main.py                 # Application entry point
+│   ├── database.py             # Database configuration
+│   ├── models.py               # SQLAlchemy models
+│   ├── schemas.py              # Pydantic validation schemas
+│   ├── crud.py                 # Database operations
+│   ├── auth_utils.py           # JWT and password hashing
+│   └── routers/                # API endpoints
+│       ├── auth.py             # Authentication
+│       ├── posts.py            # Task management
+│       ├── users.py            # User profiles and leaderboard
+│       ├── comments.py         # Task discussions
+│       └── images.py           # Image upload
 │
-└── 📱 flutter_code/         # Flutter mobile app
-    └── (See flutter_code/README.md for details)
+├── trash_classifier/           # ML microservice
+│   ├── main.py                 # Classification API
+│   ├── waste_classifier_model.h5
+│   └── requirements.txt
+│
+└── flutter_code/               # Mobile application
+    └── (See flutter_code/README.md)
 ```
 
----
+## Overview
 
-## 🚀 Quick Start Guide
+CleanQuest enables citizens to report environmental issues with GPS-tagged photos. Volunteers can browse open tasks on a map, claim them, and submit proof of cleanup. The platform uses machine learning to classify waste types and award points accordingly.
+
+### Workflow
+
+1. **Report**: Citizens photograph environmental issues with automatic GPS tagging
+2. **Classify**: ML service analyzes the image and assigns category and points
+3. **Volunteer**: Community members browse and claim open tasks
+4. **Clock In**: Volunteers take "before" photos when arriving at the site
+5. **Clock Out**: Submit "after" photos as proof of completion
+6. **Approve**: Task authors review proof and award points
+7. **Leaderboard**: Track community impact and top contributors
+
+## Features
+
+### Task Management
+- Create cleanup requests with image and location
+- Automatic waste classification (cardboard, glass, metal, paper, plastic, trash)
+- ML-based point assignment (0-20 points based on waste type)
+- Three-phase task lifecycle: OPEN → IN_PROGRESS → PENDING_APPROVAL → COMPLETED
+- Background ML processing for non-blocking user experience
+
+### Volunteer System
+- Browse all open tasks with pagination
+- Clock in/out system with timestamp tracking
+- Before and after photo submissions
+- Automatic duration calculation
+- Point verification against original classification
+
+### Gamification
+- Point system tied to waste recyclability
+- Global leaderboard (top 10 users) 
+- Personal dashboard with task history
+- Separate tracking for created vs completed tasks
+
+### Community Features
+- Task comments and discussions
+- Like system for popular requests
+- User profiles with public stats
+- Real-time task status updates
+
+## API Endpoints
+
+### Authentication
+- `POST /auth/register` - Create account
+- `POST /auth/token` - Login (returns JWT)
+
+### Tasks
+- `GET /posts/` - List open tasks (paginated)
+- `POST /posts/` - Create cleanup request
+- `PATCH /posts/{id}` - Update task details (author only)
+- `POST /posts/{id}/start_work` - Clock in as volunteer
+- `POST /posts/{id}/submit_proof` - Clock out with completion proof
+- `POST /posts/{id}/approve` - Approve and award points (author only)
+
+### Users
+- `GET /users/me` - Private profile with email
+- `GET /users/profile/stats` - Dashboard with task history
+- `GET /users/leaderboard` - Top 10 users by points
+
+### Comments
+- `POST /comments/?post_id={id}` - Add comment
+- `GET /comments/?post_id={id}` - Get task comments
+
+### Images
+- `POST /images/upload/` - Upload to Cloudinary
+
+### ML Service
+- `POST /predict_with_urls` - Classify waste from image URL
+- `POST /predict_with_file` - Classify waste from uploaded file
+
+## Installation
 
 ### Prerequisites
-
-**Backend Requirements:**
 - Python 3.12+
-- PostgreSQL (for production) or SQLite (for local development)
-- Cloudinary account (for image hosting)
+- PostgreSQL (or SQLite for local development)
+- Cloudinary account
+- Flutter SDK 3.0+ (for mobile app)
 
-**Frontend Requirements:**
-- Flutter SDK 3.0+
-- Dart 3.0+
-- Android Studio / Xcode (for mobile development)
+### Backend Setup
 
----
-
-## 🔧 Backend Setup
-
-### 1. Clone the Repository
-
+1. Clone and navigate to backend directory:
 ```bash
-git clone <your-repo-url>
+git clone <repository-url>
 cd backend
 ```
 
-### 2. Create Virtual Environment
-
+2. Create virtual environment:
 ```bash
-# Create virtual environment
 python -m venv venv
-
-# Activate it
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-source venv/bin/activate
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-### 3. Install Dependencies
-
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-
-Create a `.env` file in the `backend/` directory:
-
+4. Configure environment variables (`.env`):
 ```ini
-# Database Configuration
-# For local development (SQLite):
+# Database
 DATABASE_URL=sqlite+aiosqlite:///./local_test.db
-
-# For production (PostgreSQL):
-# DATABASE_URL=postgresql+asyncpg://user:password@host:port/database
+# For production: postgresql+asyncpg://user:pass@host:port/db
 
 # Security
-SECRET_KEY=your_very_secret_random_key_here_change_this
+SECRET_KEY=<generate-with-openssl-rand-hex-32>
 
-# Cloudinary Image Hosting
+# Cloudinary
 CLOUDINARY_CLOUD_NAME=your_cloud_name
 CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
+
+# ML Service URL
+CLASSIFIER_MICORSERVICE=http://localhost:6969
 ```
 
-**🔑 Important Notes:**
-- Generate a secure `SECRET_KEY` using: `openssl rand -hex 32`
-- Get Cloudinary credentials from: https://cloudinary.com/
-- For production, use PostgreSQL instead of SQLite
-
-### 5. Run the Backend Server
-
+5. Run the server:
 ```bash
 uvicorn main:app --reload
 ```
 
-The API will be available at: **http://127.0.0.1:8000**
+API available at `http://127.0.0.1:8000`  
+Swagger docs at `http://127.0.0.1:8000/docs`
 
-### 6. Test the API
+### ML Service Setup
 
-- **Swagger UI (Interactive):** http://127.0.0.1:8000/docs
-- **ReDoc (Documentation):** http://127.0.0.1:8000/redoc
-- **Health Check:** http://127.0.0.1:8000/
+1. Navigate to classifier directory:
+```bash
+cd trash_classifier
+```
 
----
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
 
-## 📱 Frontend Setup
+3. Ensure model file exists:
+```bash
+ls waste_classifier_model.h5
+```
 
-See the **[Flutter Frontend README](./flutter_code/README.md)** for detailed setup instructions, including:
-- Flutter environment setup
-- Dependency installation
-- API endpoint configuration
-- Running on emulators and physical devices
-- Building for production
+4. Run the service:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 6969 --reload
+```
 
----
+Service available at `http://127.0.0.1:6969`
 
-## 🔌 API Endpoints Reference
+### Frontend Setup
 
-### Authentication
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/auth/register` | Register new user account |
-| `POST` | `/auth/token` | Login and receive JWT token |
+See [Flutter README](./flutter_code/README.md) for mobile app installation and configuration.
 
-### Tasks (Posts)
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/posts/` | Get all open tasks (paginated) |
-| `POST` | `/posts/` | Create a new task/issue report |
-| `POST` | `/posts/{id}/submit-proof` | Submit cleanup proof (volunteers) |
-| `POST` | `/posts/{id}/approve` | Approve proof and award points (task owner) |
+## Deployment
 
-### Users
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `GET` | `/users/me` | Get current user's private profile |
-| `GET` | `/users/profile/stats` | Get dashboard stats and task history |
-| `GET` | `/users/leaderboard` | Get top 10 users by points |
+### Backend (Railway/Render)
 
-### Comments
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/comments/?post_id={id}` | Add comment to a task |
-| `GET` | `/comments/?post_id={id}` | Get all comments for a task |
+Current deployment uses an alternate account due to free tier limitations:  
+**Live Backend**: [https://github.com/Devil-tech828/env-El-rvce.git](https://github.com/Devil-tech828/env-El-rvce.git)
 
-### Images
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| `POST` | `/images/upload/` | Upload image to Cloudinary |
+Standard Railway deployment:
+1. Create new project and link GitHub repository
+2. Add PostgreSQL database service
+3. Configure environment variables (SECRET_KEY, CLOUDINARY_*, CLASSIFIER_MICORSERVICE)
+4. Deploy using Procfile
 
----
+Alternative platforms: Heroku, gcloud , AWS EC2 ...
 
-## ☁️ Deployment
+### ML Service Deployment
 
-### Railway (Recommended for Backend)
+Deploy as separate service on Railway/Render with Dockerfile. Update `CLASSIFIER_MICORSERVICE` environment variable in main backend.
 
-> **📌 Note:** Due to Railway free tier limitations, this project's backend is currently deployed using an alternate account. You can view the live deployment details and configuration at: **[https://github.com/Devil-tech828/env-El-rvce.git](https://github.com/Devil-tech828/env-El-rvce.git)**
+### Mobile App
 
-**Standard Railway Deployment Steps:**
+See [Flutter README](./flutter_code/README.md) for APK/IPA builds and app store publishing.
 
-1. **Create Railway Project:**
-   - Sign up at [Railway.app](https://railway.app)
-   - Connect your GitHub repository
-
-2. **Add PostgreSQL Database:**
-   - Click "New" → "Database" → "PostgreSQL"
-   - Railway will automatically set `DATABASE_URL`
-
-3. **Configure Backend Service:**
-   - Add the backend as a new service
-   - Set environment variables:
-     - `SECRET_KEY`
-     - `CLOUDINARY_CLOUD_NAME`
-     - `CLOUDINARY_API_KEY`
-     - `CLOUDINARY_API_SECRET`
-
-4. **Deploy:**
-   - Railway auto-deploys using the `Procfile`
-   - Your API will be live at: `https://your-app.railway.app`
-
-**Alternative Deployment Options:**
-- **Heroku:** Similar setup with Procfile support
-- **Render:** Free tier with PostgreSQL included
-- **DigitalOcean App Platform:** Scalable container deployment
-- **AWS EC2/Lightsail:** More control, requires manual configuration
-
-### Flutter App Deployment
-
-See the [Flutter README](./flutter_code/README.md) for:
-- Building APK/IPA files
-- Publishing to Google Play Store
-- Publishing to Apple App Store
-
----
-
-## 🔐 Security Features
-
-- **Argon2 Password Hashing:** Industry-standard password security
-- **JWT Authentication:** Stateless, scalable token-based auth
-- **HTTPS/SSL Support:** Secure data transmission
-- **CORS Configuration:** Controlled cross-origin access
-- **Input Validation:** Pydantic schema validation on all endpoints
-
----
-
-## 🛠️ Technology Stack
-
-### Backend
-- **FastAPI** - Modern async Python web framework
-- **PostgreSQL** - Robust relational database
-- **SQLAlchemy** - Async ORM with eager loading
-- **Cloudinary** - Cloud-based image hosting and optimization
-- **Argon2** - Password hashing algorithm
-- **JWT** - JSON Web Token authentication
-
-### Frontend
-- **Flutter** - Cross-platform mobile framework
-- **Dart** - Programming language
-- (See flutter_code/README.md for complete list)
-
----
-
-## 📊 Database Schema
+## Database Schema
 
 ### Users
-- `id`, `username`, `email`, `hashed_password`
-- `points` (gamification)
-- `created_at`
+- `id`, `username`, `email`, `hashed_password`, `points`, `created_at`
 
 ### Posts (Tasks)
-- `id`, `image_url`, `image_public_id`, `caption`
-- `latitude`, `longitude` (GPS coordinates)
-- `status` (open, pending, completed)
-- `proof_image_url` (volunteer's submission)
-- `author_id`, `resolved_by_id`
+- `id`, `image_url`, `image_public_id`, `caption`, `latitude`, `longitude`
+- `predicted_class`, `points`, `status` (OPEN, IN_PROGRESS, PENDING_APPROVAL, COMPLETED, CANCELLED)
+- `author_id`, `volunteer_id`, `resolved_by_id`
+- `start_image_url`, `end_image_url`, `proof_image_url`
+- `volunteer_start_timestamp`, `volunteer_end_timestamp`, `cleanup_duration_minutes`
+- `verified_points` (ML verification result)
 
 ### Comments
-- `id`, `content`, `created_at`
-- `author_id`, `post_id`
+- `id`, `content`, `created_at`, `author_id`, `post_id`
 
 ### Likes
 - `id`, `user_id`, `post_id`
-
----
-
-## 🐛 Troubleshooting
-
-### Common Backend Issues
-
-**Database Connection Errors:**
-```bash
-# Check if DATABASE_URL is set correctly
-echo $DATABASE_URL
-
-# For PostgreSQL, ensure SSL context is configured
-# (Already handled in database.py)
-```
-
-**Cloudinary Upload Failures:**
-- Verify credentials in `.env` file
-- Check image file size (max 10MB recommended)
-- Ensure internet connection is stable
-
-**Port Already in Use:**
-```bash
-# Change port in uvicorn command
-uvicorn main:app --reload --port 8001
-```
-
-### Common Frontend Issues
-
-See [Flutter README](./flutter_source_code/README.md) for mobile-specific troubleshooting.
-
----
