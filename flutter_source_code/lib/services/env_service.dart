@@ -5,7 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class EnvService {
   // 🔑 Your Real Key
   // static final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? '';
-  static final String apiKey = "d06e18aa825748f5862110439252711";
+  static final String apiKey = dotenv.env['WEATHER_API_KEY'] ?? '';
   static const bool useDemoMode = false;
 
   final Dio _dio = Dio();

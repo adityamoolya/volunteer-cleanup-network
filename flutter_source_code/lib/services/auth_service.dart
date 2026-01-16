@@ -8,8 +8,9 @@ class AuthService {
   // Android Emulator: 'http://10.0.2.2:8000'
   // Physical Device: Use your PC's LAN IP (e.g., 'http://192.168.1.5:8000')
   // static const String baseUrl = 'http://10.0.2.2:8000';
-  static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
+  // static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
   // static final String baseUrl = dotenv.env['BACKEND_API'] ?? '';
+  static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
 
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();

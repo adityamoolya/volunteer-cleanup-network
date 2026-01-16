@@ -93,10 +93,10 @@ packages:
     dependency: transitive
     description:
       name: ffi
-      sha256: "289279317b4b16eb2bb7e271abccd4bf84ec9bdcbe999e278a94b804f5630418"
+      sha256: d07d37192dbf97461359c1518788f203b0c9102cfd2c35a716b823741219542c
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.4"
+    version: "2.1.5"
   file_selector_linux:
     dependency: transitive
     description:
@@ -292,18 +292,18 @@ packages:
     dependency: transitive
     description:
       name: google_maps_flutter_android
-      sha256: "3835f6ae5e8b8d4d454d913575069513c9f216e088b87aa5c18cb3610951c6b4"
+      sha256: "6dbbfc697eedd29c3634affb2d6b3e5ecfc4e6e50c8345f4b975cc969c74b582"
       url: "https://pub.dev"
     source: hosted
-    version: "2.18.6"
+    version: "2.18.9"
   google_maps_flutter_ios:
     dependency: transitive
     description:
       name: google_maps_flutter_ios
-      sha256: "115b03c2e637e74d084a78c0e1faf42884fcd8e65d1a9ce58d909ca5493afa32"
+      sha256: b3f9aa62f65f7f266651e156a910ce88b8158de6546c6b145c9ba8080eb861b3
       url: "https://pub.dev"
     source: hosted
-    version: "2.15.7"
+    version: "2.16.1"
   google_maps_flutter_platform_interface:
     dependency: transitive
     description:
@@ -372,10 +372,10 @@ packages:
     dependency: transitive
     description:
       name: image_picker_ios
-      sha256: "997d100ce1dda5b1ba4085194c5e36c9f8a1fb7987f6a36ab677a344cd2dc986"
+      sha256: "956c16a42c0c708f914021666ffcd8265dde36e673c9fa68c81f7d085d9774ad"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.13+2"
+    version: "0.8.13+3"
   image_picker_linux:
     dependency: transitive
     description:

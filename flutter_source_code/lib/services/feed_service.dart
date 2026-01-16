@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/post_model.dart';
 
 class FeedService {
-  static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
-
+  // static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
+  static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
