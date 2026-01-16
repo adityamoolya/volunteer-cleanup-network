@@ -199,7 +199,7 @@ Service available at `http://127.0.0.1:6969`
 
 ### Frontend Setup
 
-See [Flutter README](./flutter_code/README.md) for mobile app installation and configuration.
+See [Flutter README](./flutter_source_code/README.md) for mobile app installation and configuration.
 
 ## Deployment
 
@@ -222,7 +222,7 @@ Deploy as separate service on Railway/Render with Dockerfile. Update `CLASSIFIER
 
 ### Mobile App
 
-See [Flutter README](./flutter_code/README.md) for APK/IPA builds and app store publishing.
+See [Flutter README](./flutter_source_code/README.md) for APK/IPA builds and app store publishing.
 
 ## Database Schema
 

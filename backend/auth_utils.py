@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 # Env vars
 SECRET_KEY = os.getenv("SECRET_KEY") #removed deafult value
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+# TODO: This is a temporary fix for the college project to avoid implementing 
+# a full Refresh Token rotation system under time pressure.
+# implementation of short-lived Access Tokens + long-lived Refresh Tokens 
+ACCESS_TOKEN_EXPIRE_MINUTES = 40000  # around 30 days
 
 # --- 1. PASSWORD HASHING (Argon2) ---
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
