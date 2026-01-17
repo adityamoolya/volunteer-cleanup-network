@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'dashboard_screen.dart';
+// import 'dashboard_screen.dart';
 import 'feed_screen.dart';
 import 'profile_screen.dart'; // Import the new profile screen
 
@@ -14,7 +14,7 @@ class _HomeScaffoldState extends State<HomeScaffold> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const DashboardScreen(),
+    // const DashboardScreen(),
     const FeedScreen(),
     const ProfileScreen(), // Added Profile Screen
   ];

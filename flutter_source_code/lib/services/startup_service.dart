@@ -21,6 +21,25 @@ class StartupService {
     }
   }
 
+
+  Future<bool> checkOnlyBackend() async {
+    try {
+      final resp = await _dio.get(backendUrl).timeout(const Duration(seconds: 5));
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> checkOnlyML() async {
+    try {
+      final resp = await _dio.get(mlUrl).timeout(const Duration(seconds: 5));
+      return resp.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // Validates the long-lived token against the user endpoint
   Future<bool> validateSession() async {
     String? token = await _storage.read(key: 'jwt_token');

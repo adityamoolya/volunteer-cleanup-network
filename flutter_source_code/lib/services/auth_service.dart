@@ -27,9 +27,9 @@ class AuthService {
   }
 
   // --- LOGIN ---
+  // inside AuthService class
   Future<bool> login(String username, String password) async {
     try {
-      // UPDATED PATH: /auth/token (was /api/auth/token)
       final response = await _dio.post(
         '/auth/token',
         data: FormData.fromMap({
@@ -40,12 +40,13 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final token = response.data['access_token'];
+        // Persist the token to secure storage
         await _storage.write(key: 'jwt_token', value: token);
         return true;
       }
       return false;
     } on DioException catch (e) {
-      final errorMsg = e.response?.data['detail'] ?? 'Connection refused or Login failed';
+      final errorMsg = e.response?.data['detail'] ?? 'Login failed';
       throw errorMsg;
     }
   }

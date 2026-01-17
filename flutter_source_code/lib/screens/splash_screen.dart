@@ -1,8 +1,7 @@
-// lib/screens/splash_screen.dart
 import 'package:flutter/material.dart';
 import '../services/startup_service.dart';
 import 'auth_screen.dart';
-import 'dashboard_screen.dart';
+import 'home_scaffold.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -13,35 +12,46 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   final StartupService _startup = StartupService();
-  String _loadingText = "Connecting to environmental grid...";
+
+  bool _isBackendUp = false;
+  bool _isMLUp = false;
 
   @override
   void initState() {
     super.initState();
-    _handleStartup();
+    _startWarmingUp();
   }
 
-  Future<void> _handleStartup() async {
-    // 1. Wait for servers to wake up (Handling Render cold-starts)
-    bool isAwake = false;
-    while (!isAwake) {
-      setState(() => _loadingText = "Waking up servers (this may take a minute)...");
-      isAwake = await _startup.isServerAwake();
-      if (!isAwake) {
-        await Future.delayed(const Duration(seconds: 3)); // Wait before retrying
+  Future<void> _startWarmingUp() async {
+    // Continue polling until BOTH are up
+    while (!_isBackendUp || !_isMLUp) {
+      if (!_isBackendUp) {
+        _isBackendUp = await _startup.checkOnlyBackend();
+      }
+      if (!_isMLUp) {
+        _isMLUp = await _startup.checkOnlyML();
+      }
+
+      // Check if user closed the app while we were polling
+      if (!mounted) return;
+
+      setState(() {});
+
+      if (!_isBackendUp || !_isMLUp) {
+        await Future.delayed(const Duration(seconds: 3));
       }
     }
 
-    // 2. Check if a valid session exists
-    setState(() => _loadingText = "Verifying your session...");
+    // Now that servers are up, check session persistence
     bool loggedIn = await _startup.validateSession();
 
+    // Final check before navigating
     if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          // Redirect based on login status
-          builder: (context) => loggedIn ? const DashboardScreen() : AuthScreen(),
+          // 🚨 FIX: Navigate to HomeScaffold to keep the bottom bar
+          builder: (context) => loggedIn ? const HomeScaffold() : const AuthScreen(),
         ),
       );
     }
@@ -50,22 +60,51 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Colors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Replace with your app logo if you have one
-            const Icon(Icons.eco, size: 80, color: Colors.white),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(color: Colors.white),
-            const SizedBox(height: 24),
-            Text(
-              _loadingText,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500),
-            ),
+            const Icon(Icons.eco, size: 100, color: Color(0xFF2E7D32)),
+            const SizedBox(height: 40),
+            _buildStatusRow("Main Backend Server", _isBackendUp),
+            const SizedBox(height: 20),
+            _buildStatusRow("ML Microservice", _isMLUp),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, bool isUp) {
+    return Container(
+      width: 280,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.grey[100],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 500),
+              child: isUp
+                  ? const Icon(Icons.check_circle, color: Colors.green, key: ValueKey('done'))
+                  : const CircularProgressIndicator(strokeWidth: 2, key: ValueKey('loading')),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Text(
+            label,
+            style: TextStyle(
+              color: isUp ? Colors.black : Colors.grey[600],
+              fontWeight: isUp ? FontWeight.bold : FontWeight.normal,
+            ),
+          ),
+        ],
       ),
     );
   }
