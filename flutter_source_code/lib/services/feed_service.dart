@@ -6,7 +6,7 @@ import '../models/post_model.dart';
 
 class FeedService {
   // 🔧 UPDATED TO MATCH DEPLOYED BACKEND
-  static const String baseUrl = 'https://env-el-backend-api.onrender.com';
+  static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 

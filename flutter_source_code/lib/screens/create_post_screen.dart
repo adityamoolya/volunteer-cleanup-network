@@ -40,7 +40,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        setState(() => _errorMessage = "Location services are disabled.");
+        setState(() => _errorMessage = "Location services are disabled. Please enable GPS.");
         return;
       }
 
@@ -54,7 +54,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       }
 
       if (permission == LocationPermission.deniedForever) {
-        setState(() => _errorMessage = "Location permission permanently denied.");
+        setState(() => _errorMessage = "Location permission permanently denied. Please enable it in settings.");
         return;
       }
 
@@ -126,6 +126,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              const Text(
+                "Choose Photo Source",
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 20),
               ListTile(
                 leading: const Icon(Icons.camera_alt, color: Color(0xFF2E7D32)),
                 title: const Text("Take Photo"),
@@ -149,7 +154,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     );
   }
 
-  // --- SUBMIT POST ---
+  // --- SUBMIT POST (FIXED) ---
   Future<void> _submitPost() async {
     // Validation
     if (_selectedImage == null) {
@@ -158,7 +163,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
 
     if (_currentPosition == null) {
-      setState(() => _errorMessage = "Location not available. Please enable GPS.");
+      setState(() => _errorMessage = "Location not available. Please enable GPS and retry.");
       return;
     }
 
@@ -174,18 +179,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
     try {
       // 1. Upload Image to Cloudinary
+      print("📤 Uploading image to Cloudinary...");
       final uploadResult = await _feedService.uploadImage(_selectedImage!);
 
-      if (uploadResult == null) {
-        throw "Image upload failed";
+      if (uploadResult == null ||
+          uploadResult['url'] == null ||
+          uploadResult['public_id'] == null) {
+        throw "Image upload failed - missing data";
       }
 
-      // 2. Create Post with Image URL
+      print("✅ Image uploaded successfully!");
+      print("   URL: ${uploadResult['url']}");
+      print("   Public ID: ${uploadResult['public_id']}");
+
+      // 2. Create Post with BOTH image URL and public_id
+      // 🔧 FIX: Added the missing public_id parameter
       bool success = await _feedService.createPost(
-        uploadResult['url']!,
-        _captionController.text.trim(),
-        _currentPosition!.latitude,
-        _currentPosition!.longitude,
+        uploadResult['url']!,           // image_url
+        uploadResult['public_id']!,     // image_public_id ← THIS WAS MISSING!
+        _captionController.text.trim(), // caption
+        _currentPosition!.latitude,     // latitude
+        _currentPosition!.longitude,    // longitude
       );
 
       if (success && mounted) {
@@ -193,14 +207,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           const SnackBar(
             content: Text("Report submitted successfully!"),
             backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
           ),
         );
         Navigator.pop(context, true); // Return true to refresh feed
+      } else {
+        throw "Post creation failed";
       }
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      print("❌ Error: $e");
+      setState(() => _errorMessage = "Submission failed: $e");
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -211,6 +231,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         title: const Text("Report an Issue"),
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
+        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
@@ -261,15 +282,41 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       "Tap to add photo",
                       style: TextStyle(color: Colors.grey[600], fontSize: 16),
                     ),
+                    const SizedBox(height: 5),
+                    Text(
+                      "Camera or Gallery",
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
                   ],
                 )
-                    : ClipRRect(
-                  borderRadius: BorderRadius.circular(12),
-                  child: Image.file(
-                    _selectedImage!,
-                    fit: BoxFit.cover,
-                    width: double.infinity,
-                  ),
+                    : Stack(
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        _selectedImage!,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: double.infinity,
+                      ),
+                    ),
+                    // Change Image Button
+                    Positioned(
+                      top: 10,
+                      right: 10,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black54,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.white, size: 20),
+                          onPressed: _showImageSourceDialog,
+                          tooltip: "Change Image",
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -283,12 +330,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               maxLength: 300,
               decoration: InputDecoration(
                 labelText: "Description",
-                hintText: "Describe the issue (e.g., garbage pile, broken drain)",
+                hintText: "Describe the issue (e.g., garbage pile, broken drain, illegal dumping)",
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
                 alignLabelWithHint: true,
+                counterText: "${_captionController.text.length}/300",
               ),
+              onChanged: (value) {
+                setState(() {}); // Update counter
+              },
             ),
 
             const SizedBox(height: 20),
@@ -297,29 +348,43 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.blue.shade50,
+                color: _currentPosition != null ? Colors.green.shade50 : Colors.orange.shade50,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue.shade200),
+                border: Border.all(
+                  color: _currentPosition != null ? Colors.green.shade200 : Colors.orange.shade200,
+                ),
               ),
               child: Row(
                 children: [
                   Icon(
                     _currentPosition != null ? Icons.location_on : Icons.location_off,
-                    color: _currentPosition != null ? Colors.green : Colors.red,
+                    color: _currentPosition != null ? Colors.green.shade700 : Colors.orange.shade700,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      _currentPosition != null
-                          ? "Location: ${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}"
-                          : "Getting location...",
-                      style: const TextStyle(fontSize: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _currentPosition != null ? "Location Captured" : "Getting location...",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: _currentPosition != null ? Colors.green.shade700 : Colors.orange.shade700,
+                          ),
+                        ),
+                        if (_currentPosition != null)
+                          Text(
+                            "${_currentPosition!.latitude.toStringAsFixed(6)}, ${_currentPosition!.longitude.toStringAsFixed(6)}",
+                            style: const TextStyle(fontSize: 11, color: Colors.black54),
+                          ),
+                      ],
                     ),
                   ),
                   if (_currentPosition == null)
                     IconButton(
                       icon: const Icon(Icons.refresh, size: 20),
                       onPressed: _getCurrentLocation,
+                      color: Colors.orange.shade700,
                     ),
                 ],
               ),
@@ -332,19 +397,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               onPressed: _isLoading ? null : _submitPost,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
+                disabledBackgroundColor: Colors.grey,
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  color: Colors.white,
-                  strokeWidth: 2,
-                ),
+                  ? Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: const [
+                  SizedBox(
+                    height: 20,
+                    width: 20,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  ),
+                  SizedBox(width: 12),
+                  Text(
+                    "SUBMITTING...",
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                  ),
+                ],
               )
                   : const Text(
                 "SUBMIT REPORT",
@@ -353,6 +433,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // --- INFO TEXT ---
+            Text(
+              "Your report will be analyzed by our AI system and made visible to volunteers in your area.",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[600],
+                fontStyle: FontStyle.italic,
               ),
             ),
           ],
