@@ -143,45 +143,45 @@ async def get_feed(
     return result.scalars().all()
 
 # CREATE REQUEST 
-@router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
-async def create_request(
-    post_data: schemas.PostCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    # 1. Create and Save
-    new_post = models.Post(
-        image_url=post_data.image_url,
-        image_public_id=post_data.image_public_id,
-        caption=post_data.caption,
-        latitude=post_data.latitude,
-        longitude=post_data.longitude,
-        predicted_class=post_data.predicted_class,  #added to handle ML micorservice result
-        points=post_data.points,
-        author_id=current_user.id,
-        status=models.TaskStatus.OPEN
-    )
-    db.add(new_post)
-    await db.commit()
-    await db.refresh(new_post)
+# @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
+# async def create_request(
+#     post_data: schemas.PostCreate,
+#     db: AsyncSession = Depends(get_db),
+#     current_user: models.User = Depends(get_current_active_user)
+# ):
+#     # 1. Create and Save
+#     new_post = models.Post(
+#         image_url=post_data.image_url,
+#         image_public_id=post_data.image_public_id,
+#         caption=post_data.caption,
+#         latitude=post_data.latitude,
+#         longitude=post_data.longitude,
+#         predicted_class=post_data.predicted_class,  #added to handle ML micorservice result
+#         points=post_data.points,
+#         author_id=current_user.id,
+#         status=models.TaskStatus.OPEN
+#     )
+#     db.add(new_post)
+#     await db.commit()
+#     await db.refresh(new_post)
     
-    # 2. CRITICAL FIX: Re-fetch the post with eager loading.
-    # This ensures 'comments', 'likes', 'author' are populated and ready for Pydantic.
-    # Trying to set new_post.comments = [] manually causes crashes in Async mode.
-    query = (
-        select(models.Post)
-        .options(
-            selectinload(models.Post.author),
-            selectinload(models.Post.likes),
-            selectinload(models.Post.comments),
-            selectinload(models.Post.resolved_by)
-        )
-        .where(models.Post.id == new_post.id)
-    )
-    result = await db.execute(query)
-    loaded_post = result.scalars().first()
+#     # 2. CRITICAL FIX: Re-fetch the post with eager loading.
+#     # This ensures 'comments', 'likes', 'author' are populated and ready for Pydantic.
+#     # Trying to set new_post.comments = [] manually causes crashes in Async mode.
+#     query = (
+#         select(models.Post)
+#         .options(
+#             selectinload(models.Post.author),
+#             selectinload(models.Post.likes),
+#             selectinload(models.Post.comments),
+#             selectinload(models.Post.resolved_by)
+#         )
+#         .where(models.Post.id == new_post.id)
+#     )
+#     result = await db.execute(query)
+#     loaded_post = result.scalars().first()
     
-    return loaded_post
+#     return loaded_post
 
 # # --- 3. SUBMIT PROOF ---
 # @router.post("/{post_id}/submit-proof")
