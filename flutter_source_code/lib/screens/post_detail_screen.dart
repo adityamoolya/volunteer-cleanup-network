@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../models/post_model.dart';
 import '../services/feed_service.dart';
 import '../services/user_service.dart';
@@ -28,6 +29,10 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String _processingStatus = "";
   String? _currentUsername;
   Post? _latestPost;
+  Position? _currentPosition;
+
+  // Increased threshold for GPS accuracy issues - 200 meters instead of 100
+  static const double GEOFENCE_RADIUS_METERS = 200.0;
 
   @override
   void initState() {
@@ -51,10 +56,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   }
 
   Future<void> _calculateDistance() async {
+    setState(() => _isChecking = true);
+    
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showError("Location services are disabled");
+        _showError("Location services are disabled. Please enable GPS.");
         if (mounted) setState(() => _isChecking = false);
         return;
       }
@@ -69,13 +76,24 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         }
       }
 
-      Position pos = await Geolocator.getCurrentPosition();
+      // Use high accuracy for better GPS results
+      Position pos = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.best,
+        timeLimit: const Duration(seconds: 30),
+      );
+      
+      _currentPosition = pos;
+      
       double dist = Geolocator.distanceBetween(
         pos.latitude, 
         pos.longitude, 
         _latestPost!.latitude, 
         _latestPost!.longitude
       );
+      
+      print("DEBUG: Current pos: ${pos.latitude}, ${pos.longitude}");
+      print("DEBUG: Post pos: ${_latestPost!.latitude}, ${_latestPost!.longitude}");
+      print("DEBUG: Distance: $dist meters, GPS accuracy: ${pos.accuracy}m");
       
       if (mounted) {
         setState(() {
@@ -85,13 +103,42 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
       }
     } catch (e) {
       print("Error calculating distance: $e");
+      _showError("GPS error: $e");
       if (mounted) setState(() => _isChecking = false);
     }
   }
 
+  // Open Google Maps for navigation
+  Future<void> _openGoogleMapsNavigation() async {
+    final lat = _latestPost!.latitude;
+    final lon = _latestPost!.longitude;
+    
+    // Google Maps URL for navigation
+    final googleMapsUrl = Uri.parse(
+      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&travelmode=walking'
+    );
+    
+    // Alternative: geo URI for default maps app
+    final geoUri = Uri.parse('geo:$lat,$lon?q=$lat,$lon');
+    
+    try {
+      // Try Google Maps first
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(geoUri)) {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+      } else {
+        _showError("Could not open maps application");
+      }
+    } catch (e) {
+      _showError("Failed to open maps: $e");
+    }
+  }
+
   Future<void> _handleClockIn() async {
-    if (_distance > 100) {
-      _showError("You must be within 100 meters of the location to clock in");
+    // Use the increased geofence radius
+    if (_distance > GEOFENCE_RADIUS_METERS) {
+      _showError("You must be within ${GEOFENCE_RADIUS_METERS.toInt()} meters of the location to clock in. Current distance: ${_distance.toInt()}m");
       return;
     }
 
@@ -272,6 +319,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           ],
         ),
         backgroundColor: Colors.red,
+        duration: const Duration(seconds: 4),
       ),
     );
   }
@@ -295,12 +343,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final post = _latestPost!;
-    final isClose = _distance <= 100;
+    final isClose = _distance <= GEOFENCE_RADIUS_METERS;
     
     // Permission checks
     final canClockIn = post.canClockIn(_currentUsername);
     final canClockOut = post.canClockOut(_currentUsername);
     final canApprove = post.canApprove(_currentUsername);
+    
+    // Show navigate button for volunteers who can clock in but aren't close enough
+    final showNavigateButton = canClockIn && !isClose;
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -309,6 +360,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
+        actions: [
+          // Navigate to location button
+          IconButton(
+            icon: const Icon(Icons.directions, color: Colors.white),
+            onPressed: _openGoogleMapsNavigation,
+            tooltip: "Get Directions",
+          ),
+        ],
       ),
       body: Stack(
         children: [
@@ -378,9 +437,16 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                       if (post.isPendingApproval && canApprove)
                         _buildEvidenceBundle(post),
 
-                      // Distance Indicator (for open tasks)
+                      // Distance Indicator & Navigate Button (for open tasks)
                       if (post.isOpen && canClockIn)
                         _buildDistanceIndicator(isClose),
+
+                      // Navigate to Location Button (prominent when far away)
+                      if (showNavigateButton)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: _buildNavigateButton(),
+                        ),
 
                       const SizedBox(height: 24),
 
@@ -412,6 +478,41 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
               ),
             ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildNavigateButton() {
+    return Container(
+      width: double.infinity,
+      height: 56,
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(colors: [Color(0xFF1976D2), Color(0xFF42A5F5)]),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.3),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: _openGoogleMapsNavigation,
+        icon: const Icon(Icons.navigation, color: Colors.white),
+        label: const Text(
+          "NAVIGATE TO LOCATION",
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          shadowColor: Colors.transparent,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
       ),
     );
   }
@@ -497,6 +598,12 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
           _buildInfoRow("Reported by", "@${post.author?.username ?? 'Unknown'}", Icons.person),
           const Divider(color: Colors.white12, height: 24),
           _buildInfoRow("Category", post.predictedClass ?? "Analyzing...", Icons.category),
+          const Divider(color: Colors.white12, height: 24),
+          _buildInfoRow(
+            "Coordinates", 
+            "${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}", 
+            Icons.location_on
+          ),
           if (post.volunteer != null) ...[
             const Divider(color: Colors.white12, height: 24),
             _buildInfoRow("Volunteer", "@${post.volunteer!.username}", Icons.volunteer_activism),
@@ -528,11 +635,14 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         const SizedBox(width: 16),
         Text(label, style: const TextStyle(color: Colors.white54)),
         const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+        Flexible(
+          child: Text(
+            value,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],
@@ -689,22 +799,32 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ),
                 ),
                 Text(
-                  isClose
-                    ? "Ready to clock in"
-                    : "Distance: ${_distance.toInt()}m (need < 100m)",
+                  _isChecking
+                    ? "Checking GPS..."
+                    : isClose
+                      ? "Ready to clock in (${_distance.toInt()}m away)"
+                      : "Distance: ${_distance.toInt()}m (need < ${GEOFENCE_RADIUS_METERS.toInt()}m)",
                   style: TextStyle(
                     color: isClose ? Colors.white54 : Colors.orange.withOpacity(0.7),
                     fontSize: 12,
                   ),
                 ),
+                if (_currentPosition != null)
+                  Text(
+                    "GPS accuracy: ±${_currentPosition!.accuracy.toInt()}m",
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
+                  ),
               ],
             ),
           ),
-          if (!isClose)
-            IconButton(
-              onPressed: _calculateDistance,
-              icon: const Icon(Icons.refresh, color: Colors.orange),
+          IconButton(
+            onPressed: _calculateDistance,
+            icon: Icon(
+              Icons.refresh,
+              color: isClose ? const Color(0xFF4CAF50) : Colors.orange,
             ),
+            tooltip: "Refresh location",
+          ),
         ],
       ),
     );
@@ -745,7 +865,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   ? "Checking location..." 
                   : isClose 
                     ? "CLOCK IN - Start Mission"
-                    : "Move closer to clock in",
+                    : "Get closer to clock in (${_distance.toInt()}m)",
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
