@@ -29,26 +29,26 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
   String _processingStatus = "";
   String? _currentUsername;
   Post? _latestPost;
-  Position? _currentPosition;
 
-  // Increased threshold for GPS accuracy issues - 200 meters instead of 100
-  static const double GEOFENCE_RADIUS_METERS = 200.0;
+  static const double geofenceRadius = 200.0;
 
   @override
   void initState() {
     super.initState();
     _latestPost = widget.post;
     _loadCurrentUser();
-    _calculateDistance();
+    if (widget.post.isOpen) {
+      _calculateDistance();
+    } else {
+      _isChecking = false;
+    }
   }
 
   Future<void> _loadCurrentUser() async {
     try {
       final stats = await _userService.getMyStats();
       if (mounted) {
-        setState(() {
-          _currentUsername = stats.username;
-        });
+        setState(() => _currentUsername = stats.username);
       }
     } catch (e) {
       print("Error loading user: $e");
@@ -61,7 +61,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     try {
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) {
-        _showError("Location services are disabled. Please enable GPS.");
+        _showError("Location services disabled. Enable GPS.");
         if (mounted) setState(() => _isChecking = false);
         return;
       }
@@ -76,24 +76,15 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         }
       }
 
-      // Use high accuracy for better GPS results
       Position pos = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.best,
         timeLimit: const Duration(seconds: 30),
       );
       
-      _currentPosition = pos;
-      
       double dist = Geolocator.distanceBetween(
-        pos.latitude, 
-        pos.longitude, 
-        _latestPost!.latitude, 
-        _latestPost!.longitude
+        pos.latitude, pos.longitude, 
+        _latestPost!.latitude, _latestPost!.longitude
       );
-      
-      print("DEBUG: Current pos: ${pos.latitude}, ${pos.longitude}");
-      print("DEBUG: Post pos: ${_latestPost!.latitude}, ${_latestPost!.longitude}");
-      print("DEBUG: Distance: $dist meters, GPS accuracy: ${pos.accuracy}m");
       
       if (mounted) {
         setState(() {
@@ -102,43 +93,27 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         });
       }
     } catch (e) {
-      print("Error calculating distance: $e");
-      _showError("GPS error: $e");
+      print("GPS error: $e");
       if (mounted) setState(() => _isChecking = false);
     }
   }
 
-  // Open Google Maps for navigation
   Future<void> _openGoogleMapsNavigation() async {
     final lat = _latestPost!.latitude;
     final lon = _latestPost!.longitude;
-    
-    // Google Maps URL for navigation
-    final googleMapsUrl = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&travelmode=walking'
-    );
-    
-    // Alternative: geo URI for default maps app
-    final geoUri = Uri.parse('geo:$lat,$lon?q=$lat,$lon');
-    
+    final url = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lon&travelmode=walking');
     try {
-      // Try Google Maps first
-      if (await canLaunchUrl(googleMapsUrl)) {
-        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
-      } else if (await canLaunchUrl(geoUri)) {
-        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
-      } else {
-        _showError("Could not open maps application");
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
       }
     } catch (e) {
-      _showError("Failed to open maps: $e");
+      _showError("Could not open maps");
     }
   }
 
   Future<void> _handleClockIn() async {
-    // Use the increased geofence radius
-    if (_distance > GEOFENCE_RADIUS_METERS) {
-      _showError("You must be within ${GEOFENCE_RADIUS_METERS.toInt()} meters of the location to clock in. Current distance: ${_distance.toInt()}m");
+    if (_distance > geofenceRadius) {
+      _showError("Move closer (within ${geofenceRadius.toInt()}m). Current: ${_distance.toInt()}m");
       return;
     }
 
@@ -148,42 +123,25 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
 
     try {
-      // Capture "Before" photo
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
-      );
-
+      final XFile? photo = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
       if (photo == null) {
         setState(() => _isProcessing = false);
         return;
       }
 
       setState(() => _processingStatus = "Uploading photo...");
-
-      // Upload to Cloudinary
       final uploadResult = await _feedService.uploadImage(File(photo.path));
-      if (uploadResult == null) {
-        throw "Failed to upload image";
-      }
+      if (uploadResult == null) throw "Upload failed";
 
-      setState(() => _processingStatus = "Starting mission...");
-
-      // Clock in with the before photo - ML will verify trash exists
+      setState(() => _processingStatus = "AI verifying...");
       await _feedService.startWork(_latestPost!.id, uploadResult['url']!);
 
-      _showSuccess("Mission started! The AI has verified the trash at this location.");
-      Navigator.pop(context, true);
-      
+      _showSuccess("Clocked In! Check Active Work in Missions.");
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showError(e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-          _processingStatus = "";
-        });
-      }
+      if (mounted) setState(() { _isProcessing = false; _processingStatus = ""; });
     }
   }
 
@@ -194,89 +152,106 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     });
 
     try {
-      // Capture "After" photo (proof of completion)
-      final XFile? photo = await _picker.pickImage(
-        source: ImageSource.camera,
-        imageQuality: 85,
-      );
-
+      final XFile? photo = await _picker.pickImage(source: ImageSource.camera, imageQuality: 85);
       if (photo == null) {
         setState(() => _isProcessing = false);
         return;
       }
 
       setState(() => _processingStatus = "Uploading proof...");
-
-      // Upload to Cloudinary
       final uploadResult = await _feedService.uploadImage(File(photo.path));
-      if (uploadResult == null) {
-        throw "Failed to upload proof image";
-      }
+      if (uploadResult == null) throw "Upload failed";
 
-      setState(() => _processingStatus = "Submitting proof...");
-
-      // Submit completion proof
+      setState(() => _processingStatus = "Submitting...");
       await _feedService.submitCleanupProof(_latestPost!.id, uploadResult['url']!);
 
-      _showSuccess("Proof submitted! Waiting for author to review and approve.");
-      Navigator.pop(context, true);
-      
+      _showSuccess("Proof submitted! Waiting for approval.");
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showError(e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-          _processingStatus = "";
-        });
-      }
+      if (mounted) setState(() { _isProcessing = false; _processingStatus = ""; });
     }
   }
 
   Future<void> _handleApprove() async {
+    final post = _latestPost!;
+    
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text("Approve Cleanup", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        title: const Row(
           children: [
-            Text(
-              "Award ${_latestPost!.points} points to ${_latestPost!.volunteer?.username ?? 'volunteer'}?",
-              style: const TextStyle(color: Colors.white70),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF2E7D32).withOpacity(0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.emoji_events, color: Colors.amber),
-                  const SizedBox(width: 12),
-                  Text(
-                    "${_latestPost!.points} Points",
-                    style: const TextStyle(
-                      color: Colors.amber,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Icon(Icons.verified, color: Color(0xFF4CAF50)),
+            SizedBox(width: 12),
+            Text("Approve Work", style: TextStyle(color: Colors.white)),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("Cancel"),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Review before & after:", style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: _buildImagePreview("BEFORE", post.startImageUrl, Colors.orange)),
+                  const SizedBox(width: 8),
+                  Expanded(child: _buildImagePreview("AFTER", post.endImageUrl, const Color(0xFF4CAF50))),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              // Time taken by volunteer
+              if (post.cleanupDurationMinutes != null)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withAlpha(25),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withAlpha(75)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.timer, color: Colors.lightBlue, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        "Time: ${post.formattedDuration}",
+                        style: const TextStyle(color: Colors.lightBlue, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              
+              // Points award box
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF2E7D32).withAlpha(50),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFF2E7D32)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.emoji_events, color: Colors.amber, size: 28),
+                    const SizedBox(width: 12),
+                    Text("${post.points} Points", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 22)),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text("To: @${post.volunteer?.username ?? 'volunteer'}", style: const TextStyle(color: Colors.white54)),
+            ],
           ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancel")),
           ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () => Navigator.pop(ctx, true),
             style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
             child: const Text("Approve", style: TextStyle(color: Colors.white)),
           ),
@@ -286,72 +261,61 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
 
     if (confirmed != true) return;
 
-    setState(() {
-      _isProcessing = true;
-      _processingStatus = "Awarding points...";
-    });
+    setState(() { _isProcessing = true; _processingStatus = "Awarding points..."; });
 
     try {
       await _feedService.approveRequest(_latestPost!.id, finalPoints: _latestPost!.points);
-      _showSuccess("Mission completed! ${_latestPost!.points} points awarded to volunteer.");
-      Navigator.pop(context, true);
+      _showSuccess("Mission completed! ${_latestPost!.points} pts awarded.");
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       _showError(e.toString());
     } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessing = false;
-          _processingStatus = "";
-        });
-      }
+      if (mounted) setState(() { _isProcessing = false; _processingStatus = ""; });
     }
   }
 
-  void _showError(String message) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.error_outline, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
+  Widget _buildImagePreview(String label, String? url, Color color) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(color: color.withAlpha(50), borderRadius: BorderRadius.circular(4)),
+          child: Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
         ),
-        backgroundColor: Colors.red,
-        duration: const Duration(seconds: 4),
-      ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: url != null
+            ? CachedNetworkImage(imageUrl: url, height: 90, width: double.infinity, fit: BoxFit.cover)
+            : Container(height: 90, color: Colors.grey[800], child: const Center(child: Text("N/A", style: TextStyle(color: Colors.white38)))),
+        ),
+      ],
     );
   }
 
-  void _showSuccess(String message) {
+  void _showError(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(child: Text(message)),
-          ],
-        ),
-        backgroundColor: const Color(0xFF2E7D32),
-      ),
-    );
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [const Icon(Icons.error, color: Colors.white), const SizedBox(width: 12), Expanded(child: Text(msg))]),
+      backgroundColor: Colors.red,
+    ));
+  }
+
+  void _showSuccess(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Row(children: [const Icon(Icons.check_circle, color: Colors.white), const SizedBox(width: 12), Expanded(child: Text(msg))]),
+      backgroundColor: const Color(0xFF2E7D32),
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     final post = _latestPost!;
-    final isClose = _distance <= GEOFENCE_RADIUS_METERS;
-    
-    // Permission checks
+    final isClose = _distance <= geofenceRadius;
     final canClockIn = post.canClockIn(_currentUsername);
     final canClockOut = post.canClockOut(_currentUsername);
     final canApprove = post.canApprove(_currentUsername);
-    
-    // Show navigate button for volunteers who can clock in but aren't close enough
-    final showNavigateButton = canClockIn && !isClose;
 
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
@@ -361,97 +325,199 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         actions: [
-          // Navigate to location button
-          IconButton(
-            icon: const Icon(Icons.directions, color: Colors.white),
-            onPressed: _openGoogleMapsNavigation,
-            tooltip: "Get Directions",
-          ),
+          IconButton(icon: const Icon(Icons.directions), onPressed: _openGoogleMapsNavigation, tooltip: "Navigate"),
         ],
       ),
       body: Stack(
         children: [
-          // Main Content
           SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Hero Image
-                _buildHeroImage(post),
+                SizedBox(
+                  height: 300,
+                  width: double.infinity,
+                  child: Stack(
+                    children: [
+                      CachedNetworkImage(imageUrl: post.imageUrl, fit: BoxFit.cover, width: double.infinity, height: 300),
+                      Positioned(
+                        bottom: 0, left: 0, right: 0,
+                        child: Container(
+                          height: 80,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, const Color(0xFF121212)],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
 
-                // Mission Details
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status Badge Row
+                      // Status & Points Row
                       Row(
                         children: [
-                          _buildStatusBadge(post),
-                          const Spacer(),
-                          // Points Badge
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              gradient: const LinearGradient(
-                                colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
-                              ),
+                              color: post.statusColor.withAlpha(50),
                               borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: post.statusColor),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.eco, color: Colors.white, size: 16),
-                                const SizedBox(width: 6),
-                                Text(
-                                  "${post.points} pts",
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                                Icon(post.statusIcon, color: post.statusColor, size: 14),
+                                const SizedBox(width: 4),
+                                Text(post.statusDisplayName, style: TextStyle(color: post.statusColor, fontWeight: FontWeight.bold, fontSize: 12)),
                               ],
                             ),
                           ),
+                          const Spacer(),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)]),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text("${post.points} pts", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                          ),
                         ],
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Caption
-                      Text(
-                        post.caption ?? "Environmental Cleanup Mission",
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
                       ),
                       const SizedBox(height: 16),
 
-                      // Mission Info Grid
-                      _buildInfoGrid(post),
-                      const SizedBox(height: 24),
+                      // Caption
+                      Text(post.caption ?? "Cleanup Mission", style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                      const SizedBox(height: 16),
 
-                      // Evidence Bundle (for pending approval)
-                      if (post.isPendingApproval && canApprove)
-                        _buildEvidenceBundle(post),
+                      // Info Card
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                        child: Column(
+                          children: [
+                            _infoRow("Reported by", "@${post.author?.username ?? 'Unknown'}", Icons.person),
+                            _infoRow("Category", post.predictedClass ?? "Analyzing...", Icons.category),
+                            if (post.volunteer != null) _infoRow("Volunteer", "@${post.volunteer!.username}", Icons.volunteer_activism),
+                            if (post.cleanupDurationMinutes != null) _infoRow("Duration", post.formattedDuration, Icons.timer),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
 
-                      // Distance Indicator & Navigate Button (for open tasks)
-                      if (post.isOpen && canClockIn)
-                        _buildDistanceIndicator(isClose),
-
-                      // Navigate to Location Button (prominent when far away)
-                      if (showNavigateButton)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: _buildNavigateButton(),
+                      // Evidence Photos (if applicable)
+                      if ((post.isPendingApproval || post.isInProgress) && (post.startImageUrl != null || post.endImageUrl != null))
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text("Evidence Photos", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                Expanded(child: _buildImagePreview("BEFORE", post.startImageUrl, Colors.orange)),
+                                const SizedBox(width: 12),
+                                Expanded(child: _buildImagePreview("AFTER", post.endImageUrl, const Color(0xFF4CAF50))),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                          ],
                         ),
 
-                      const SizedBox(height: 24),
+                      // Distance indicator for clock-in
+                      if (post.isOpen && canClockIn)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          decoration: BoxDecoration(
+                            color: isClose ? const Color(0xFF2E7D32).withAlpha(30) : Colors.orange.withAlpha(30),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: isClose ? const Color(0xFF2E7D32) : Colors.orange),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(isClose ? Icons.check_circle : Icons.location_searching, color: isClose ? const Color(0xFF4CAF50) : Colors.orange),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  _isChecking ? "Checking location..." : (isClose ? "Ready! (${_distance.toInt()}m away)" : "${_distance.toInt()}m away (need <${geofenceRadius.toInt()}m)"),
+                                  style: TextStyle(color: isClose ? const Color(0xFF4CAF50) : Colors.orange),
+                                ),
+                              ),
+                              IconButton(icon: Icon(Icons.refresh, color: isClose ? const Color(0xFF4CAF50) : Colors.orange), onPressed: _calculateDistance),
+                            ],
+                          ),
+                        ),
+
+                      // Navigate button if far
+                      if (canClockIn && !isClose)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: SizedBox(
+                            width: double.infinity,
+                            height: 50,
+                            child: ElevatedButton.icon(
+                              onPressed: _openGoogleMapsNavigation,
+                              icon: const Icon(Icons.navigation, color: Colors.white),
+                              label: const Text("NAVIGATE", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                              style: ElevatedButton.styleFrom(backgroundColor: Colors.blue, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                            ),
+                          ),
+                        ),
 
                       // Action Buttons
-                      _buildActionButtons(post, isClose, canClockIn, canClockOut, canApprove),
+                      if (canClockIn)
+                        SizedBox(
+                          width: double.infinity, height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: (isClose && !_isChecking) ? _handleClockIn : null,
+                            icon: const Icon(Icons.login, color: Colors.white),
+                            label: Text(isClose ? "CLOCK IN" : "Get closer", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: isClose ? const Color(0xFF2E7D32) : Colors.grey, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          ),
+                        ),
+
+                      if (canClockOut)
+                        SizedBox(
+                          width: double.infinity, height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _handleClockOut,
+                            icon: const Icon(Icons.logout, color: Colors.white),
+                            label: const Text("CLOCK OUT - Submit Proof", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          ),
+                        ),
+
+                      if (canApprove)
+                        SizedBox(
+                          width: double.infinity, height: 50,
+                          child: ElevatedButton.icon(
+                            onPressed: _handleApprove,
+                            icon: const Icon(Icons.verified, color: Colors.white),
+                            label: const Text("APPROVE & AWARD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                          ),
+                        ),
+
+                      if (!canClockIn && !canClockOut && !canApprove)
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.info_outline, color: Colors.white54),
+                              const SizedBox(width: 12),
+                              Expanded(child: Text(_getInfoMessage(post), style: const TextStyle(color: Colors.white54))),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                 ),
@@ -459,7 +525,7 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
             ),
           ),
 
-          // Loading Overlay
+          // Loading overlay
           if (_isProcessing)
             Container(
               color: Colors.black87,
@@ -468,11 +534,8 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const CircularProgressIndicator(color: Color(0xFF4CAF50)),
-                    const SizedBox(height: 24),
-                    Text(
-                      _processingStatus,
-                      style: const TextStyle(color: Colors.white, fontSize: 16),
-                    ),
+                    const SizedBox(height: 20),
+                    Text(_processingStatus, style: const TextStyle(color: Colors.white)),
                   ],
                 ),
               ),
@@ -482,501 +545,26 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
     );
   }
 
-  Widget _buildNavigateButton() {
-    return Container(
-      width: double.infinity,
-      height: 56,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(colors: [Color(0xFF1976D2), Color(0xFF42A5F5)]),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.3),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ElevatedButton.icon(
-        onPressed: _openGoogleMapsNavigation,
-        icon: const Icon(Icons.navigation, color: Colors.white),
-        label: const Text(
-          "NAVIGATE TO LOCATION",
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-          ),
-        ),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHeroImage(Post post) {
-    return SizedBox(
-      height: 350,
-      width: double.infinity,
-      child: Stack(
-        children: [
-          CachedNetworkImage(
-            imageUrl: post.imageUrl,
-            fit: BoxFit.cover,
-            width: double.infinity,
-            height: 350,
-            placeholder: (context, url) => Container(
-              color: const Color(0xFF1E1E1E),
-              child: const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32))),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: const Color(0xFF1E1E1E),
-              child: const Icon(Icons.broken_image, color: Colors.white54, size: 60),
-            ),
-          ),
-          // Gradient overlay
-          Positioned(
-            bottom: 0,
-            left: 0,
-            right: 0,
-            child: Container(
-              height: 100,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.transparent,
-                    const Color(0xFF121212),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatusBadge(Post post) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: post.statusColor.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: post.statusColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(post.statusIcon, color: post.statusColor, size: 16),
-          const SizedBox(width: 6),
-          Text(
-            post.statusDisplayName,
-            style: TextStyle(
-              color: post.statusColor,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoGrid(Post post) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          _buildInfoRow("Reported by", "@${post.author?.username ?? 'Unknown'}", Icons.person),
-          const Divider(color: Colors.white12, height: 24),
-          _buildInfoRow("Category", post.predictedClass ?? "Analyzing...", Icons.category),
-          const Divider(color: Colors.white12, height: 24),
-          _buildInfoRow(
-            "Coordinates", 
-            "${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}", 
-            Icons.location_on
-          ),
-          if (post.volunteer != null) ...[
-            const Divider(color: Colors.white12, height: 24),
-            _buildInfoRow("Volunteer", "@${post.volunteer!.username}", Icons.volunteer_activism),
-          ],
-          if (post.cleanupDurationMinutes != null) ...[
-            const Divider(color: Colors.white12, height: 24),
-            _buildInfoRow("Duration", post.formattedDuration, Icons.timer),
-          ],
-          if (post.verifiedPoints != null && post.verifiedPoints! > 0) ...[
-            const Divider(color: Colors.white12, height: 24),
-            _buildInfoRow("Verified Points", "${post.verifiedPoints}", Icons.verified),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoRow(String label, String value, IconData icon) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: const Color(0xFF2E7D32).withOpacity(0.2),
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: const Color(0xFF4CAF50), size: 18),
-        ),
-        const SizedBox(width: 16),
-        Text(label, style: const TextStyle(color: Colors.white54)),
-        const Spacer(),
-        Flexible(
-          child: Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-            ),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildEvidenceBundle(Post post) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.compare, color: Color(0xFF4CAF50)),
-            SizedBox(width: 12),
-            Text(
-              "Evidence Bundle",
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            Expanded(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      "BEFORE",
-                      style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (post.startImageUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: post.startImageUrl!,
-                        height: 150,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text("No image", style: TextStyle(color: Colors.white38)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2E7D32).withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Text(
-                      "AFTER",
-                      style: TextStyle(color: Color(0xFF4CAF50), fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (post.endImageUrl != null)
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: post.endImageUrl!,
-                        height: 150,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  else
-                    Container(
-                      height: 150,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Center(
-                        child: Text("No image", style: TextStyle(color: Colors.white38)),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
-  Widget _buildDistanceIndicator(bool isClose) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: isClose 
-          ? const Color(0xFF2E7D32).withOpacity(0.1)
-          : Colors.orange.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: isClose ? const Color(0xFF2E7D32) : Colors.orange,
-          width: 2,
-        ),
-      ),
+  Widget _infoRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: isClose
-                  ? const Color(0xFF2E7D32).withOpacity(0.2)
-                  : Colors.orange.withOpacity(0.2),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isClose ? Icons.location_on : Icons.location_searching,
-              color: isClose ? const Color(0xFF4CAF50) : Colors.orange,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isClose 
-                    ? "You're at the location!" 
-                    : "Move closer to start",
-                  style: TextStyle(
-                    color: isClose ? const Color(0xFF4CAF50) : Colors.orange,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  _isChecking
-                    ? "Checking GPS..."
-                    : isClose
-                      ? "Ready to clock in (${_distance.toInt()}m away)"
-                      : "Distance: ${_distance.toInt()}m (need < ${GEOFENCE_RADIUS_METERS.toInt()}m)",
-                  style: TextStyle(
-                    color: isClose ? Colors.white54 : Colors.orange.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-                if (_currentPosition != null)
-                  Text(
-                    "GPS accuracy: ±${_currentPosition!.accuracy.toInt()}m",
-                    style: const TextStyle(color: Colors.white38, fontSize: 11),
-                  ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: _calculateDistance,
-            icon: Icon(
-              Icons.refresh,
-              color: isClose ? const Color(0xFF4CAF50) : Colors.orange,
-            ),
-            tooltip: "Refresh location",
-          ),
+          Icon(icon, color: const Color(0xFF4CAF50), size: 18),
+          const SizedBox(width: 12),
+          Text(label, style: const TextStyle(color: Colors.white54)),
+          const Spacer(),
+          Flexible(child: Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500), overflow: TextOverflow.ellipsis)),
         ],
       ),
-    );
-  }
-
-  Widget _buildActionButtons(Post post, bool isClose, bool canClockIn, bool canClockOut, bool canApprove) {
-    return Column(
-      children: [
-        // Clock In Button
-        if (canClockIn)
-          Container(
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: isClose
-                  ? const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)])
-                  : null,
-              color: isClose ? null : Colors.grey[700],
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: isClose
-                  ? [
-                      BoxShadow(
-                        color: const Color(0xFF2E7D32).withOpacity(0.3),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ]
-                  : null,
-            ),
-            child: ElevatedButton.icon(
-              onPressed: (_isChecking || !isClose) ? null : _handleClockIn,
-              icon: Icon(
-                _isChecking ? Icons.hourglass_top : Icons.login,
-                color: Colors.white,
-              ),
-              label: Text(
-                _isChecking 
-                  ? "Checking location..." 
-                  : isClose 
-                    ? "CLOCK IN - Start Mission"
-                    : "Get closer to clock in (${_distance.toInt()}m)",
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ),
-
-        // Clock Out Button
-        if (canClockOut)
-          Container(
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFFE65100), Color(0xFFFF9800)]),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.orange.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _handleClockOut,
-              icon: const Icon(Icons.camera_alt, color: Colors.white),
-              label: const Text(
-                "SUBMIT PROOF - Take Photo",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ),
-
-        // Approve Button
-        if (canApprove)
-          Container(
-            width: double.infinity,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)]),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: const Color(0xFF2E7D32).withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: ElevatedButton.icon(
-              onPressed: _handleApprove,
-              icon: const Icon(Icons.check_circle, color: Colors.white),
-              label: const Text(
-                "APPROVE & AWARD POINTS",
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.transparent,
-                shadowColor: Colors.transparent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ),
-
-        // Info for other states
-        if (!canClockIn && !canClockOut && !canApprove)
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E1E1E),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.info_outline, color: Colors.white54),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(
-                    _getInfoMessage(post),
-                    style: const TextStyle(color: Colors.white54),
-                  ),
-                ),
-              ],
-            ),
-          ),
-      ],
     );
   }
 
   String _getInfoMessage(Post post) {
-    if (post.isCompleted) {
-      return "This mission has been completed successfully! ✅";
-    } else if (post.isInProgress && post.volunteer?.username != _currentUsername) {
-      return "This mission is currently being handled by @${post.volunteer?.username}.";
-    } else if (post.isPendingApproval && post.author?.username != _currentUsername) {
-      return "Waiting for the author to review and approve the cleanup proof.";
-    } else if (post.isOpen && post.author?.username == _currentUsername) {
-      return "This is your report. Waiting for volunteers to claim it.";
-    }
-    return "No actions available for this mission.";
+    if (post.isCompleted) return "Mission completed!";
+    if (post.isInProgress && post.volunteer?.username != _currentUsername) return "Being handled by @${post.volunteer?.username}";
+    if (post.isPendingApproval) return "Awaiting author approval";
+    if (post.isOpen && post.author?.username == _currentUsername) return "Your report - waiting for volunteers";
+    return "No actions available";
   }
 }

@@ -266,8 +266,8 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: post.isPendingApproval 
-            ? Colors.orange.withOpacity(0.5)
-            : Colors.white.withOpacity(0.1),
+            ? Colors.orange.withAlpha(127)
+            : Colors.white.withAlpha(25),
         ),
       ),
       child: Material(
@@ -293,24 +293,28 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                   borderRadius: BorderRadius.circular(12),
                   child: CachedNetworkImage(
                     imageUrl: post.imageUrl,
-                    width: 80,
-                    height: 80,
+                    width: 70,
+                    height: 70,
                     fit: BoxFit.cover,
                     placeholder: (context, url) => Container(
+                      width: 70,
+                      height: 70,
                       color: const Color(0xFF2A2A2A),
                       child: const Center(
                         child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50)),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
+                      width: 70,
+                      height: 70,
                       color: const Color(0xFF2A2A2A),
                       child: const Icon(Icons.broken_image, color: Colors.white38),
                     ),
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 12),
                 
-                // Details
+                // Details - Flexible to prevent overflow
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -320,103 +324,74 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                         post.caption ?? "Mission #${post.id}",
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 16,
+                          fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
-                        maxLines: 2,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       
                       // Status Badge
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: post.statusColor.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: post.statusColor, width: 1),
+                          color: post.statusColor.withAlpha(50),
+                          borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(post.statusIcon, color: post.statusColor, size: 12),
-                            const SizedBox(width: 4),
-                            Text(
-                              post.statusDisplayName,
-                              style: TextStyle(
-                                color: post.statusColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
+                        child: Text(
+                          post.statusDisplayName,
+                          style: TextStyle(
+                            color: post.statusColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       
-                      // Points & Additional Info
-                      Row(
+                      // Points & Action Hint - Using Wrap to prevent overflow
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 4,
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2E7D32).withOpacity(0.2),
-                              borderRadius: BorderRadius.circular(8),
+                              color: const Color(0xFF2E7D32).withAlpha(50),
+                              borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.eco, color: Color(0xFF4CAF50), size: 14),
-                                const SizedBox(width: 4),
-                                Text(
-                                  "${post.points} pts",
-                                  style: const TextStyle(
-                                    color: Color(0xFF4CAF50),
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              "${post.points} pts",
+                              style: const TextStyle(
+                                color: Color(0xFF4CAF50),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 11,
+                              ),
                             ),
                           ),
-                          const SizedBox(width: 8),
-                          // Action hint
                           if (post.isPendingApproval && !isActiveWork)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.orange.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.orange.withAlpha(50),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.rate_review, color: Colors.orange, size: 14),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    "Review",
-                                    style: TextStyle(color: Colors.orange, fontSize: 12),
-                                  ),
-                                ],
+                              child: const Text(
+                                "Review",
+                                style: TextStyle(color: Colors.orange, fontSize: 11),
                               ),
                             ),
                           if (isActiveWork && post.isInProgress)
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(8),
+                                color: Colors.blue.withAlpha(50),
+                                borderRadius: BorderRadius.circular(6),
                               ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.camera_alt, color: Colors.blue, size: 14),
-                                  SizedBox(width: 4),
-                                  Text(
-                                    "Submit Proof",
-                                    style: TextStyle(color: Colors.blue, fontSize: 12),
-                                  ),
-                                ],
+                              child: const Text(
+                                "Submit Proof",
+                                style: TextStyle(color: Colors.blue, fontSize: 11),
                               ),
                             ),
                         ],
@@ -426,7 +401,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                 ),
                 
                 // Arrow
-                const Icon(Icons.chevron_right, color: Colors.white38),
+                const Icon(Icons.chevron_right, color: Colors.white38, size: 20),
               ],
             ),
           ),

@@ -2,7 +2,8 @@
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc, func, or_
+from sqlalchemy.orm import selectinload
 from typing import List
 
 import schemas, models
@@ -32,14 +33,41 @@ async def get_my_stats(
     created_res = await db.execute(created_q)
     created_count = created_res.scalar()
 
-    # 2. Tasks I solved (Contributions)
+    # 2. Tasks I solved (Completed contributions)
     solved_q = select(func.count()).where(models.Post.resolved_by_id == current_user.id)
     solved_res = await db.execute(solved_q)
     solved_count = solved_res.scalar()
 
-    # 3. Get the actual lists
-    my_requests_q = select(models.Post).where(models.Post.author_id == current_user.id).order_by(desc(models.Post.created_at))
-    my_contribs_q = select(models.Post).where(models.Post.resolved_by_id == current_user.id).order_by(desc(models.Post.created_at))
+    # 3. Get my requests (posts I created)
+    my_requests_q = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.volunteer),
+            selectinload(models.Post.resolved_by)
+        )
+        .where(models.Post.author_id == current_user.id)
+        .order_by(desc(models.Post.created_at))
+    )
+    
+    # 4. Get my contributions - includes:
+    #    - Posts where I am the active volunteer (volunteer_id)
+    #    - Posts where I completed the work (resolved_by_id)
+    my_contribs_q = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.volunteer),
+            selectinload(models.Post.resolved_by)
+        )
+        .where(
+            or_(
+                models.Post.volunteer_id == current_user.id,
+                models.Post.resolved_by_id == current_user.id
+            )
+        )
+        .order_by(desc(models.Post.created_at))
+    )
     
     my_requests = (await db.execute(my_requests_q)).scalars().all()
     my_contribs = (await db.execute(my_contribs_q)).scalars().all()
