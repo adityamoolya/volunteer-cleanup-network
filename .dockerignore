@@ -1,0 +1,85 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv
+venv/
+ENV/
+env/
+.eggs
+*.egg-info
+*.egg
+.pytest_cache
+.mypy_cache
+.coverage
+htmlcov/
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# Flutter/Dart (not needed for backend)
+flutter_source_code/
+*.dart
+.dart_tool
+.packages
+build/
+
+# Frontend assets (if any)
+*.apk
+*.ipa
+*.aab
+
+# ML/Classifier (hosted separately)
+trash_classifier/
+*.h5
+*.pkl
+*.joblib
+*.onnx
+*.pt
+*.pth
+saved_models/
+
+# Docker
+docker-compose*.yml
+Dockerfile.dev
+
+# Environment files (use --env-file instead)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Database files (use external DB in production)
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Documentation
+*.md
+docs/
+
+# Tests (optional - remove if you want tests in container)
+tests/
+*_test.py
+test_*.py
+
+# Temporary files
+tmp/
+temp/
+*.tmp
