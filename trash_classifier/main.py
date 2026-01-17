@@ -27,8 +27,12 @@ DUSTBIN_MAP = {
 }
 
 POINTS_DIC = {
-    'cardboard': 10, 'glass': 10, 'metal': 20, 
-    'paper': 5, 'plastic': 15, 'trash': 0
+    'cardboard': 5,
+    'paper': 8,
+    'glass': 15,
+    'metal': 25,
+    'plastic': 30,
+    'trash': 10
 }
 class PredictRequest(BaseModel):
     image_url: str
