@@ -74,49 +74,49 @@ async def process_post_ml(post_id: int, image_url: str):
                 await db.commit()
 
 # CREATE REQUEST , tb accessed by author only
-@router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
-async def author_create_request(
-    post_data: schemas.PostCreate,
-    background_tasks: BackgroundTasks, # inject backgroundtasks
-    db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
-):
-    #create Post with "Processing" state
-    new_post = models.Post(
-        image_url=post_data.image_url,
-        # image_public_id=post_data.image_public_id,
-        caption=post_data.caption,
-        latitude=post_data.latitude,
-        longitude=post_data.longitude,
+# @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
+# async def author_create_request(
+#     post_data: schemas.PostCreate,
+#     background_tasks: BackgroundTasks, # inject backgroundtasks
+#     db: AsyncSession = Depends(get_db),
+#     current_user: models.User = Depends(get_current_active_user)
+# ):
+#     #create Post with "Processing" state
+#     new_post = models.Post(
+#         image_url=post_data.image_url,
+#         # image_public_id=post_data.image_public_id,
+#         caption=post_data.caption,
+#         latitude=post_data.latitude,
+#         longitude=post_data.longitude,
         
-        # default values while we wait
-        predicted_class="Analysing", 
-        points=0,
+#         # default values while we wait
+#         predicted_class="Analysing", 
+#         points=0,
         
-        author_id=current_user.id,
-        status=models.TaskStatus.OPEN
-    )
-    db.add(new_post)
-    await db.commit()
-    await db.refresh(new_post)
+#         author_id=current_user.id,
+#         status=models.TaskStatus.OPEN
+#     )
+#     db.add(new_post)
+#     await db.commit()
+#     await db.refresh(new_post)
     
-    #trigger the background task
-    background_tasks.add_task(process_post_ml, new_post.id, new_post.image_url)
+#     #trigger the background task
+#     background_tasks.add_task(process_post_ml, new_post.id, new_post.image_url)
     
-    #returning immediately 
-    #we re-fetch to ensure relationships are loaded (same as our previous code)
-    query = (
-        select(models.Post)
-        .options(
-            selectinload(models.Post.author),
-            selectinload(models.Post.likes),
-            selectinload(models.Post.comments),
-            selectinload(models.Post.resolved_by)
-        )
-        .where(models.Post.id == new_post.id)
-    )
-    result = await db.execute(query)
-    return result.scalars().first()
+#     #returning immediately 
+#     #we re-fetch to ensure relationships are loaded (same as our previous code)
+#     query = (
+#         select(models.Post)
+#         .options(
+#             selectinload(models.Post.author),
+#             selectinload(models.Post.likes),
+#             selectinload(models.Post.comments),
+#             selectinload(models.Post.resolved_by)
+#         )
+#         .where(models.Post.id == new_post.id)
+#     )
+#     result = await db.execute(query)
+#     return result.scalars().first()
 
 
 # GET FEED for community folks
@@ -462,6 +462,46 @@ async def approve_work(
             selectinload(models.Post.volunteer)
         )
         .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    return result.scalars().first()
+
+
+@router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
+async def author_create_request(
+    post_data: schemas.PostCreate,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+    current_user: models.User = Depends(get_current_active_user)
+):
+    new_post = models.Post(
+        image_url=post_data.image_url,
+        image_public_id=post_data.image_public_id, # FIX: Uncommented this line
+        caption=post_data.caption,
+        latitude=post_data.latitude,
+        longitude=post_data.longitude,
+        predicted_class="Analysing", 
+        points=0,
+        author_id=current_user.id,
+        status=models.TaskStatus.OPEN
+    )
+    db.add(new_post)
+    await db.commit()
+    await db.refresh(new_post)
+    
+    background_tasks.add_task(process_post_ml, new_post.id, new_post.image_url)
+    
+    # FIX: Re-fetch with ALL relationships including volunteer and comment authors
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer) # Added volunteer
+        )
+        .where(models.Post.id == new_post.id)
     )
     result = await db.execute(query)
     return result.scalars().first()

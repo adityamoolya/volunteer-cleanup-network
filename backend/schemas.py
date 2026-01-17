@@ -105,5 +105,5 @@ class Post(PostBase):
     comments: List[Comment] = []
     likes: List[Like] = []
 
-class Config:
-        from_attributes = True
+    class Config:
+            from_attributes = True
