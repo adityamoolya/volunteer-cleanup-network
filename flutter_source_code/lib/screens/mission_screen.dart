@@ -1,11 +1,9 @@
-// lib/screens/missions_screen.dart
-
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../services/user_service.dart';
 import '../models/profile_model.dart';
 import '../models/post_model.dart';
-import 'package:url_launcher/url_launcher.dart';
-import '../widgets/complete_cleanup_dialog.dart';
+import 'post_detail_screen.dart';
 
 class MissionsScreen extends StatefulWidget {
   const MissionsScreen({super.key});
@@ -17,13 +15,15 @@ class MissionsScreen extends StatefulWidget {
 class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProviderStateMixin {
   final UserService _userService = UserService();
   late TabController _tabController;
-  Future<ProfileStats>? _statsFuture;
+  ProfileStats? _stats;
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    _loadStats();
+    _loadData();
   }
 
   @override
@@ -32,505 +32,405 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
     super.dispose();
   }
 
-  void _loadStats() {
+  Future<void> _loadData() async {
     setState(() {
-      _statsFuture = _userService.getMyStats();
+      _isLoading = true;
+      _errorMessage = null;
     });
-  }
-
-  Future<void> _openMap(double lat, double lng) async {
-    final Uri url = Uri.parse(
-        "https://www.google.com/maps/dir/?api=1&destination=$lat,$lng");
-
-    if (await canLaunchUrl(url)) {
-      await launchUrl(url, mode: LaunchMode.externalApplication);
-    } else {
+    try {
+      final stats = await _userService.getMyStats();
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Could not open Google Maps")));
+        setState(() {
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "Failed to load missions: $e";
+        });
       }
     }
   }
 
-  void _showCompleteDialog(Post post) {
-    showDialog(
-      context: context,
-      builder: (context) => CompleteCleanupDialog(
-        post: post,
-        onSuccess: _loadStats,
-      ),
-    );
+  List<Post> _getActiveWork() {
+    if (_stats == null) return [];
+    return _stats!.myContributions
+        .where((p) => p.status.toUpperCase() == 'IN_PROGRESS')
+        .toList();
+  }
+
+  List<Post> _getMyReports() {
+    if (_stats == null) return [];
+    return _stats!.myRequests
+        .where((p) => 
+          p.status.toUpperCase() == 'OPEN' || 
+          p.status.toUpperCase() == 'PENDING_APPROVAL' ||
+          p.status.toUpperCase() == 'PENDING' ||
+          p.status.toUpperCase() == 'IN_PROGRESS'
+        )
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: const Color(0xFF121212),
       appBar: AppBar(
-        title: const Text("My Missions"),
-        backgroundColor: const Color(0xFF2E7D32),
+        title: const Row(
+          children: [
+            Icon(Icons.assignment, color: Color(0xFF4CAF50)),
+            SizedBox(width: 12),
+            Text("Mission Control", style: TextStyle(fontWeight: FontWeight.bold)),
+          ],
+        ),
+        backgroundColor: const Color(0xFF1E1E1E),
         foregroundColor: Colors.white,
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _loadData,
+            tooltip: "Refresh",
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: Colors.white,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: "Contributions"),
-            Tab(text: "My Reports"),
-          ],
-        ),
-      ),
-      body: FutureBuilder<ProfileStats>(
-        future: _statsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-
-          final stats = snapshot.data!;
-
-          return TabBarView(
-            controller: _tabController,
-            children: [
-              _buildContributionsList(stats.myContributions),
-              _buildMyRequestsList(stats.myRequests),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  // --- CONTRIBUTIONS TAB ---
-  Widget _buildContributionsList(List<Post> contributions) {
-    final inProgress = contributions.where((p) => p.status.toLowerCase() == 'in_progress').toList();
-
-    if (inProgress.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.volunteer_activism, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              "No active contributions yet",
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              "Browse the feed to find tasks!",
-              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async => _loadStats(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: inProgress.length,
-        itemBuilder: (context, index) {
-          final post = inProgress[index];
-          return _buildContributionCard(post);
-        },
-      ),
-    );
-  }
-
-  Widget _buildContributionCard(Post post) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image Section
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Stack(
-              children: [
-                Image.network(
-                  post.imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.broken_image),
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.orange,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.construction, color: Colors.white, size: 14),
-                        SizedBox(width: 4),
-                        Text(
-                          "IN PROGRESS",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          // Content Section
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post.caption ?? "Cleanup Task",
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        "${post.latitude.toStringAsFixed(4)}, ${post.longitude.toStringAsFixed(4)}",
-                        style: const TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.directions, color: Colors.blue, size: 20),
-                      onPressed: () => _openMap(post.latitude, post.longitude),
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                // COMPLETE CLEANUP BUTTON
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _showCompleteDialog(post),
-                    icon: const Icon(Icons.check_circle_outline, size: 20),
-                    label: const Text("COMPLETE CLEANUP"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2E7D32),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // --- MY REPORTS TAB ---
-  Widget _buildMyRequestsList(List<Post> myRequests) {
-    if (myRequests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.report_problem_outlined, size: 80, color: Colors.grey[400]),
-            const SizedBox(height: 16),
-            Text(
-              "You haven't created any reports yet",
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-          ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: () async => _loadStats(),
-      child: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: myRequests.length,
-        itemBuilder: (context, index) {
-          final post = myRequests[index];
-          return _buildMyRequestCard(post);
-        },
-      ),
-    );
-  }
-
-  Widget _buildMyRequestCard(Post post) {
-    bool isPending = post.status.toLowerCase() == 'pending';
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Stack(
-              children: [
-                Image.network(
-                  post.imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
-                    height: 200,
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.broken_image),
-                  ),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: _getStatusChip(post.status),
-                ),
-              ],
-            ),
-          ),
-
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  post.caption ?? "No description",
-                  style: const TextStyle(fontSize: 16, height: 1.4),
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    const Icon(Icons.access_time, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                      "${post.createdAt.day}/${post.createdAt.month}",
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // PENDING APPROVAL SECTION (Same as ProfileScreen)
-          if (isPending && post.proofImageUrl != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50,
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          indicatorColor: const Color(0xFF4CAF50),
+          indicatorWeight: 3,
+          labelColor: const Color(0xFF4CAF50),
+          unselectedLabelColor: Colors.white54,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+          tabs: [
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Submission by ${post.resolvedBy?.username ?? 'Volunteer'}",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.orange.shade900,
-                        ),
+                  const Icon(Icons.construction, size: 18),
+                  const SizedBox(width: 8),
+                  const Text("Active Work"),
+                  if (_getActiveWork().isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF4CAF50),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      InkWell(
-                        onTap: () => _showApproveDialog(post.id),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.orange,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            children: [
-                              Text(
-                                "PENDING",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                              SizedBox(width: 4),
-                              Icon(Icons.touch_app, size: 14, color: Colors.white),
-                            ],
-                          ),
+                      child: Text(
+                        "${_getActiveWork().length}",
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Tab(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.report, size: 18),
+                  const SizedBox(width: 8),
+                  const Text("My Reports"),
+                  if (_getMyReports().isNotEmpty)
+                    Container(
+                      margin: const EdgeInsets.only(left: 8),
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orange,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        "${_getMyReports().length}",
+                        style: const TextStyle(color: Colors.white, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+      body: _isLoading
+          ? const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                  SizedBox(height: 16),
+                  Text("Loading missions...", style: TextStyle(color: Colors.white54)),
+                ],
+              ),
+            )
+          : _errorMessage != null
+              ? Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.white38, size: 60),
+                      const SizedBox(height: 16),
+                      Text(
+                        _errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.white54),
+                      ),
+                      const SizedBox(height: 24),
+                      ElevatedButton.icon(
+                        onPressed: _loadData,
+                        icon: const Icon(Icons.refresh, color: Colors.white),
+                        label: const Text("Retry", style: TextStyle(color: Colors.white)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2E7D32),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      post.proofImageUrl!,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ],
+                )
+              : TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildMissionList(_getActiveWork(), isActiveWork: true),
+                    _buildMissionList(_getMyReports(), isActiveWork: false),
+                  ],
+                ),
+    );
+  }
+
+  Widget _buildMissionList(List<Post> posts, {required bool isActiveWork}) {
+    if (posts.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isActiveWork ? Icons.work_off : Icons.inbox,
+              size: 80,
+              color: Colors.white24,
+            ),
+            const SizedBox(height: 24),
+            Text(
+              isActiveWork 
+                ? "No active missions"
+                : "No pending reports",
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
               ),
             ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              isActiveWork 
+                ? "Visit the Discover tab to find\ncleanup opportunities!"
+                : "Tap + on Discover to report\nan environmental issue",
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: _loadData,
+              icon: const Icon(Icons.refresh, color: Colors.white),
+              label: const Text("Refresh", style: TextStyle(color: Colors.white)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2E7D32),
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadData,
+      color: const Color(0xFF4CAF50),
+      backgroundColor: const Color(0xFF1E1E1E),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: posts.length,
+        itemBuilder: (context, index) {
+          final post = posts[index];
+          return _buildMissionCard(post, isActiveWork: isActiveWork);
+        },
       ),
     );
   }
 
-  void _showApproveDialog(int postId) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Close Request?"),
-        content: const Text(
-            "This will mark the task as COMPLETED and award points to the volunteer."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await _handleApprove(postId);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF2E7D32),
-            ),
-            child: const Text(
-              "Approve & Close",
-              style: TextStyle(color: Colors.white),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _handleApprove(int postId) async {
-    try {
-      final feedService = await UserService().approveMissionRequest(postId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Request Closed!"),
-            backgroundColor: Colors.green,
-          ),
-        );
-        _loadStats();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.toString()),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-
-  Widget _getStatusChip(String status) {
-    Color color;
-    IconData icon;
-
-    switch (status.toLowerCase()) {
-      case 'completed':
-        color = Colors.green;
-        icon = Icons.check_circle;
-        break;
-      case 'pending':
-        color = Colors.orange;
-        icon = Icons.hourglass_top;
-        break;
-      case 'in_progress':
-        color = Colors.blue;
-        icon = Icons.construction;
-        break;
-      default:
-        color = Colors.grey;
-        icon = Icons.error_outline;
-    }
-
+  Widget _buildMissionCard(Post post, {required bool isActiveWork}) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black26,
-            blurRadius: 4,
-            offset: const Offset(0, 2),
-          ),
-        ],
+        color: const Color(0xFF1E1E1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: post.isPendingApproval 
+            ? Colors.orange.withOpacity(0.5)
+            : Colors.white.withOpacity(0.1),
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 12),
-          const SizedBox(width: 4),
-          Text(
-            status.toUpperCase(),
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () async {
+            final result = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)),
+            );
+            if (result == true) {
+              _loadData();
+            }
+          },
+          borderRadius: BorderRadius.circular(16),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Thumbnail
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: CachedNetworkImage(
+                    imageUrl: post.imageUrl,
+                    width: 80,
+                    height: 80,
+                    fit: BoxFit.cover,
+                    placeholder: (context, url) => Container(
+                      color: const Color(0xFF2A2A2A),
+                      child: const Center(
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50)),
+                      ),
+                    ),
+                    errorWidget: (context, url, error) => Container(
+                      color: const Color(0xFF2A2A2A),
+                      child: const Icon(Icons.broken_image, color: Colors.white38),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                
+                // Details
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Caption
+                      Text(
+                        post.caption ?? "Mission #${post.id}",
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Status Badge
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: post.statusColor.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: post.statusColor, width: 1),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(post.statusIcon, color: post.statusColor, size: 12),
+                            const SizedBox(width: 4),
+                            Text(
+                              post.statusDisplayName,
+                              style: TextStyle(
+                                color: post.statusColor,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      
+                      // Points & Additional Info
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2E7D32).withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.eco, color: Color(0xFF4CAF50), size: 14),
+                                const SizedBox(width: 4),
+                                Text(
+                                  "${post.points} pts",
+                                  style: const TextStyle(
+                                    color: Color(0xFF4CAF50),
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Action hint
+                          if (post.isPendingApproval && !isActiveWork)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.rate_review, color: Colors.orange, size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "Review",
+                                    style: TextStyle(color: Colors.orange, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          if (isActiveWork && post.isInProgress)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue.withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.camera_alt, color: Colors.blue, size: 14),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    "Submit Proof",
+                                    style: TextStyle(color: Colors.blue, fontSize: 12),
+                                  ),
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Arrow
+                const Icon(Icons.chevron_right, color: Colors.white38),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }

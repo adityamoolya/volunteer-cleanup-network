@@ -1,8 +1,9 @@
+// lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/user_service.dart';
 import '../models/profile_model.dart';
-import '../models/post_model.dart';
-import '../services/feed_service.dart';
+import 'auth_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -13,351 +14,476 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
-  final FeedService _feedService = FeedService();
-  Future<ProfileStats>? _statsFuture;
-
-  // 0 = My Requests, 1 = Contributions
-  int _selectedTab = 0;
+  final FlutterSecureStorage _storage = const FlutterSecureStorage();
+  bool _isLoading = true;
+  ProfileStats? _stats;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
-    _loadStats();
+    _loadProfile();
   }
 
-  void _loadStats() {
+  Future<void> _loadProfile() async {
     setState(() {
-      _statsFuture = _userService.getMyStats();
+      _isLoading = true;
+      _errorMessage = null;
     });
+    try {
+      final stats = await _userService.getMyStats();
+      if (mounted) {
+        setState(() {
+          _stats = stats;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = "$e";
+        });
+      }
+    }
+  }
+
+  Future<void> _handleLogout() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text("Logout", style: TextStyle(color: Colors.white)),
+        content: const Text(
+          "Are you sure you want to logout?",
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text("Logout", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _storage.delete(key: 'jwt_token');
+      if (mounted) {
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+          (route) => false,
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.grey[50],
-      body: FutureBuilder<ProfileStats>(
-        future: _statsFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (snapshot.hasError) {
-            return Center(child: Text("Error: ${snapshot.error}"));
-          }
-
-          final stats = snapshot.data!;
-          final activeList = _selectedTab == 0 ? stats.myRequests : stats.myContributions;
-
-          return Column(
+    if (_isLoading) {
+      return const Scaffold(
+        backgroundColor: Color(0xFF121212),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // --- TOP 25% SECTION: STATS HEADER ---
-              Container(
-                height: MediaQuery.of(context).size.height * 0.30, // Slightly more than 25% for breathing room
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Color(0xFF2E7D32), Color(0xFF1B5E20)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                ),
-                child: SafeArea(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      // Avatar & Name
-                      CircleAvatar(
-                        radius: 35,
-                        backgroundColor: Colors.white,
-                        child: Text(
-                          stats.username[0].toUpperCase(),
-                          style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF2E7D32)),
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        stats.username,
-                        style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
-                      ),
-                      Text(
-                        "${stats.points} Points",
-                        style: const TextStyle(color: Colors.yellowAccent, fontSize: 16, fontWeight: FontWeight.w600),
-                      ),
-                      const SizedBox(height: 20),
-
-                      // Stat Counters
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                        children: [
-                          _buildStatItem("Requests", stats.createdCount.toString()),
-                          Container(width: 1, height: 30, color: Colors.white24),
-                          _buildStatItem("Contributions", stats.solvedCount.toString()),
-                        ],
-                      )
-                    ],
-                  ),
-                ),
-              ),
-
-              // --- TOGGLE BUTTONS ---
-              Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    children: [
-                      _buildToggleButton("My Requests", 0),
-                      _buildToggleButton("Contributions", 1),
-                    ],
-                  ),
-                ),
-              ),
-
-              // --- THE LIST ---
-              Expanded(
-                child: activeList.isEmpty
-                    ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.inbox_outlined, size: 60, color: Colors.grey[400]),
-                      const SizedBox(height: 10),
-                      Text("No posts found here yet.", style: TextStyle(color: Colors.grey[600])),
-                    ],
-                  ),
-                )
-                    : ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: activeList.length,
-                  itemBuilder: (context, index) {
-                    return _buildPostCard(activeList[index]);
-                  },
-                ),
-              ),
+              CircularProgressIndicator(color: Color(0xFF4CAF50)),
+              SizedBox(height: 16),
+              Text("Loading profile...", style: TextStyle(color: Colors.white54)),
             ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildStatItem(String label, String value) {
-    return Column(
-      children: [
-        Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 12)),
-      ],
-    );
-  }
-
-  Widget _buildToggleButton(String text, int index) {
-    final bool isActive = _selectedTab == index;
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => setState(() => _selectedTab = index),
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: isActive ? Colors.white : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: isActive ? [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4, spreadRadius: 1)] : null,
           ),
-          child: Center(
-            child: Text(
-              text,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: isActive ? const Color(0xFF2E7D32) : Colors.grey,
-              ),
+        ),
+      );
+    }
+
+    if (_errorMessage != null || _stats == null) {
+      return Scaffold(
+        backgroundColor: const Color(0xFF121212),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 60, color: Colors.white38),
+                const SizedBox(height: 16),
+                Text(
+                  _errorMessage ?? "Failed to load profile",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: Colors.white54),
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton.icon(
+                  onPressed: _loadProfile,
+                  icon: const Icon(Icons.refresh, color: Colors.white),
+                  label: const Text("Retry", style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                ),
+              ],
             ),
           ),
+        ),
+      );
+    }
+
+    // Filter contributions to show only COMPLETED missions
+    final completedMissions = _stats!.myContributions
+        .where((p) => p.status.toUpperCase() == 'COMPLETED')
+        .toList();
+    final myReportsSolved = _stats!.myRequests
+        .where((p) => p.status.toUpperCase() == 'COMPLETED')
+        .toList();
+
+    // Calculate verified points from completed missions only
+    int verifiedImpactPoints = completedMissions.fold(0, (sum, item) => sum + item.points);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFF121212),
+      body: RefreshIndicator(
+        onRefresh: _loadProfile,
+        color: const Color(0xFF4CAF50),
+        backgroundColor: const Color(0xFF1E1E1E),
+        child: CustomScrollView(
+          slivers: [
+            // Profile Header
+            SliverToBoxAdapter(
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.only(top: 60, bottom: 30, left: 20, right: 20),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF1E1E1E), Color(0xFF121212)],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    // Logout Button
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: IconButton(
+                          icon: const Icon(Icons.logout, color: Colors.white70),
+                          onPressed: _handleLogout,
+                          tooltip: "Logout",
+                        ),
+                      ),
+                    ),
+                    
+                    // Avatar
+                    Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                        ),
+                      ),
+                      child: CircleAvatar(
+                        radius: 50,
+                        backgroundColor: const Color(0xFF121212),
+                        child: Text(
+                          _stats!.username[0].toUpperCase(),
+                          style: const TextStyle(
+                            fontSize: 40,
+                            color: Color(0xFF4CAF50),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Username
+                    Text(
+                      "@${_stats!.username}",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    
+                    // Verified Points Badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF2E7D32).withOpacity(0.4),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.emoji_events, color: Colors.white, size: 20),
+                          const SizedBox(width: 8),
+                          Text(
+                            "$verifiedImpactPoints VERIFIED POINTS",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            // Impact Stats
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "ENVIRONMENTAL IMPACT",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white38,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _impactCard(
+                            Icons.cleaning_services,
+                            "Cleanups",
+                            completedMissions.length.toString(),
+                            const Color(0xFF4CAF50),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _impactCard(
+                            Icons.report,
+                            "Reports",
+                            _stats!.createdCount.toString(),
+                            Colors.blue,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _impactCard(
+                            Icons.check_circle,
+                            "Resolved",
+                            myReportsSolved.length.toString(),
+                            Colors.orange,
+                          ),
+                        ),
+                      ],
+                    ),
+                    
+                    const SizedBox(height: 32),
+
+                    // Mission History Header
+                    Row(
+                      children: [
+                        const Icon(Icons.history, color: Color(0xFF4CAF50)),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "COMPLETED MISSIONS",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            fontSize: 16,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF2E7D32).withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            "${completedMissions.length} total",
+                            style: const TextStyle(color: Color(0xFF4CAF50), fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                ),
+              ),
+            ),
+
+            // Completed Missions List
+            completedMissions.isEmpty
+                ? SliverToBoxAdapter(
+                    child: Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(40),
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E1E1E),
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(Icons.inbox, size: 48, color: Colors.white24),
+                            ),
+                            const SizedBox(height: 20),
+                            const Text(
+                              "No missions completed yet",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            const Text(
+                              "Start volunteering to build\nyour environmental impact!",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: Colors.white54),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  )
+                : SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final mission = completedMissions[index];
+                        return Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF1E1E1E),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2E7D32).withOpacity(0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.check_circle, color: Color(0xFF4CAF50)),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      mission.caption ?? "Cleanup Mission #${mission.id}",
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      "Completed ${mission.formattedDate}",
+                                      style: const TextStyle(fontSize: 12, color: Colors.white38),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.amber.withOpacity(0.2),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  "+${mission.points}",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                      childCount: completedMissions.length,
+                    ),
+                  ),
+
+            // Bottom padding
+            const SliverToBoxAdapter(
+              child: SizedBox(height: 100),
+            ),
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildPostCard(Post post) {
-    bool isPending = post.status.toLowerCase() == 'pending';
-
+  Widget _impactCard(IconData icon, String label, String value, Color color) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(color: Colors.black12, blurRadius: 8, offset: const Offset(0, 4))
-        ],
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- EXISTING IMAGE & STATUS ---
-          ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: Stack(
-              children: [
-                Image.network(
-                  post.imageUrl,
-                  height: 200,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(height: 200, color: Colors.grey[300], child: const Icon(Icons.broken_image)),
-                ),
-                Positioned(
-                  top: 10,
-                  right: 10,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(12)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _getStatusIcon(post.status),
-                        const SizedBox(width: 4),
-                        Text(post.status.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  ),
-                )
-              ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 28,
+              color: color,
             ),
           ),
-
-          // --- CONTENT ---
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(post.caption ?? "No description provided.", style: const TextStyle(fontSize: 16, height: 1.4)),
-                const SizedBox(height: 12),
-
-                // Existing Metadata Row
-                Row(
-                  children: [
-                    Icon(Icons.access_time, size: 16, color: Colors.grey),
-                    const SizedBox(width: 4),
-                    Text(
-                        "${post.createdAt.day}/${post.createdAt.month}",
-                        style: const TextStyle(color: Colors.grey, fontSize: 12)
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-
-          // --- NEW: PROOF SECTION (Only if Pending) ---
-          if (isPending && post.proofImageUrl != null)
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.orange.shade50, // Different background color
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Submission by ${post.resolvedBy?.username ?? 'Volunteer'}",
-                        style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange.shade900),
-                      ),
-
-                      // THE ACTION BUTTON
-                      InkWell(
-                        onTap: () => _showApproveDialog(post.id),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.orange,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            children: [
-                              Text("PENDING", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                              SizedBox(width: 4),
-                              Icon(Icons.touch_app, size: 14, color: Colors.white)
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  // Proof Image
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: Image.network(
-                      post.proofImageUrl!,
-                      height: 150,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  // --- CONFIRMATION DIALOG ---
-  void _showApproveDialog(int postId) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("Close Request?"),
-        content: const Text("This will mark the task as COMPLETED and award points to the volunteer."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("Cancel"),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              Navigator.pop(ctx); // Close dialog
-              await _handleApprove(postId);
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
-            child: const Text("Approve & Close", style: TextStyle(color: Colors.white)),
+          const SizedBox(height: 4),
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
       ),
     );
-  }
-
-  Future<void> _handleApprove(int postId) async {
-    try {
-      bool success = await _feedService.approveRequest(postId);
-      if (success) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Request Closed!"), backgroundColor: Colors.green));
-          _loadStats(); // Refresh the list
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString()), backgroundColor: Colors.red));
-      }
-    }
-  }
-  Widget _getStatusIcon(String status) {
-    switch(status.toLowerCase()) {
-      case 'completed': return const Icon(Icons.check_circle, color: Colors.greenAccent, size: 14);
-      case 'pending': return const Icon(Icons.hourglass_top, color: Colors.orangeAccent, size: 14);
-      default: return const Icon(Icons.error_outline, color: Colors.redAccent, size: 14);
-    }
   }
 }

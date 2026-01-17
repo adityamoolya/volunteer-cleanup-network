@@ -27,11 +27,8 @@ router = APIRouter(
 )
 
 
-
 #this runs in the background. it calls the ML service and updates the DB
 async def process_post_ml(post_id: int, image_url: str):
-    
-    # ml_url = os.getenv("CLASSIFIER_MICORSERVICE") 
     
     try:
         #calling ML service and passing the public link thatt cloudinary gave 
@@ -61,65 +58,18 @@ async def process_post_ml(post_id: int, image_url: str):
 
     except Exception as e:
         logger.error(f"[Background-----] ML Error: {e}")
-    except Exception as e:
-        logger.error(f"[Background------] ML Error: {e}")
         
         # FAILSAFE
         async with AsyncSessionLocal() as db:
             result = await db.execute(select(models.Post).where(models.Post.id == post_id))
             post = result.scalars().first()
             if post:
-                post.predicted_class = "ERROR" # <--- Give user a hint
+                post.predicted_class = "ERROR"
                 post.points = 0
                 await db.commit()
 
-# CREATE REQUEST , tb accessed by author only
-# @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
-# async def author_create_request(
-#     post_data: schemas.PostCreate,
-#     background_tasks: BackgroundTasks, # inject backgroundtasks
-#     db: AsyncSession = Depends(get_db),
-#     current_user: models.User = Depends(get_current_active_user)
-# ):
-#     #create Post with "Processing" state
-#     new_post = models.Post(
-#         image_url=post_data.image_url,
-#         # image_public_id=post_data.image_public_id,
-#         caption=post_data.caption,
-#         latitude=post_data.latitude,
-#         longitude=post_data.longitude,
-        
-#         # default values while we wait
-#         predicted_class="Analysing", 
-#         points=0,
-        
-#         author_id=current_user.id,
-#         status=models.TaskStatus.OPEN
-#     )
-#     db.add(new_post)
-#     await db.commit()
-#     await db.refresh(new_post)
-    
-#     #trigger the background task
-#     background_tasks.add_task(process_post_ml, new_post.id, new_post.image_url)
-    
-#     #returning immediately 
-#     #we re-fetch to ensure relationships are loaded (same as our previous code)
-#     query = (
-#         select(models.Post)
-#         .options(
-#             selectinload(models.Post.author),
-#             selectinload(models.Post.likes),
-#             selectinload(models.Post.comments),
-#             selectinload(models.Post.resolved_by)
-#         )
-#         .where(models.Post.id == new_post.id)
-#     )
-#     result = await db.execute(query)
-#     return result.scalars().first()
 
-
-# GET FEED for community folks
+# GET FEED for community folks - FIXED with volunteer selectinload
 @router.get("/", response_model=List[schemas.Post])
 async def get_feed(
     skip: int = 0, 
@@ -132,7 +82,8 @@ async def get_feed(
             selectinload(models.Post.author),       
             selectinload(models.Post.likes),        
             selectinload(models.Post.comments).selectinload(models.Comment.author), 
-            selectinload(models.Post.resolved_by)   
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer)  # FIXED: Added to prevent async lazy loading error
         )
         .where(models.Post.status != models.TaskStatus.COMPLETED)
         .order_by(desc(models.Post.created_at))
@@ -141,107 +92,6 @@ async def get_feed(
     )
     result = await db.execute(query)
     return result.scalars().all()
-
-# CREATE REQUEST 
-# @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
-# async def create_request(
-#     post_data: schemas.PostCreate,
-#     db: AsyncSession = Depends(get_db),
-#     current_user: models.User = Depends(get_current_active_user)
-# ):
-#     # 1. Create and Save
-#     new_post = models.Post(
-#         image_url=post_data.image_url,
-#         image_public_id=post_data.image_public_id,
-#         caption=post_data.caption,
-#         latitude=post_data.latitude,
-#         longitude=post_data.longitude,
-#         predicted_class=post_data.predicted_class,  #added to handle ML micorservice result
-#         points=post_data.points,
-#         author_id=current_user.id,
-#         status=models.TaskStatus.OPEN
-#     )
-#     db.add(new_post)
-#     await db.commit()
-#     await db.refresh(new_post)
-    
-#     # 2. CRITICAL FIX: Re-fetch the post with eager loading.
-#     # This ensures 'comments', 'likes', 'author' are populated and ready for Pydantic.
-#     # Trying to set new_post.comments = [] manually causes crashes in Async mode.
-#     query = (
-#         select(models.Post)
-#         .options(
-#             selectinload(models.Post.author),
-#             selectinload(models.Post.likes),
-#             selectinload(models.Post.comments),
-#             selectinload(models.Post.resolved_by)
-#         )
-#         .where(models.Post.id == new_post.id)
-#     )
-#     result = await db.execute(query)
-#     loaded_post = result.scalars().first()
-    
-#     return loaded_post
-
-# # --- 3. SUBMIT PROOF ---
-# @router.post("/{post_id}/submit-proof")
-# async def submit_proof(
-#     post_id: int,
-#     proof_image_url: str, 
-#     db: AsyncSession = Depends(get_db),
-#     current_user: models.User = Depends(get_current_active_user)
-# ):
-#     result = await db.execute(select(models.Post).where(models.Post.id == post_id))
-#     post = result.scalars().first()
-
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Task not found")
-
-#     if post.status != models.TaskStatus.OPEN:
-#         raise HTTPException(status_code=400, detail="Task is not open for contributions")
-    
-#     if post.author_id == current_user.id:
-#          raise HTTPException(status_code=400, detail="You cannot claim your own task")
-
-#     post.status = models.TaskStatus.PENDING_VERIFICATION
-#     post.resolved_by_id = current_user.id
-#     post.proof_image_url = proof_image_url
-    
-#     await db.commit()
-#     return {"message": "Proof submitted! Waiting for author approval."}
-
-# --- 4. APPROVE & CLOSE ---
-# @router.post("/{post_id}/approve")
-# async def approve_and_close(
-#     post_id: int,
-#     db: AsyncSession = Depends(get_db),
-#     current_user: models.User = Depends(get_current_active_user)
-# ):
-#     query = (
-#         select(models.Post)
-#         .options(selectinload(models.Post.resolved_by)) 
-#         .where(models.Post.id == post_id)
-#     )
-#     result = await db.execute(query)
-#     post = result.scalars().first()
-
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Task not found")
-
-#     if post.author_id != current_user.id:
-#         raise HTTPException(status_code=403, detail="Only the author can approve this")
-
-#     if post.status != models.TaskStatus.PENDING_APPROVAL:
-#         raise HTTPException(status_code=400, detail="No pending proof to approve")
-
-#     if post.resolved_by:
-#         # post.resolved_by.points += 50
-#         post.resolved_by.points += post.points
-    
-#     post.status = models.TaskStatus.COMPLETED
-    
-#     await db.commit()
-#     return {"message": "Task approved! Points awarded."}
 
 
 ''' just in case ML spits wrong result we give author option 
@@ -280,14 +130,14 @@ async def author_update_post(
     await db.commit()
     
     #CRITICAL FIX: Re-fetch with relationships loaded
-    # We use the same query logic as 'get_feed' or 'create_request'
     query = (
         select(models.Post)
         .options(
             selectinload(models.Post.author),
             selectinload(models.Post.likes),
             selectinload(models.Post.comments).selectinload(models.Comment.author),
-            selectinload(models.Post.resolved_by)
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer)
         )
         .where(models.Post.id == post_id)
     )
@@ -342,7 +192,7 @@ async def start_cleanup_work(
     post.status = models.TaskStatus.IN_PROGRESS
     post.volunteer_id = current_user.id
     post.start_image_url = start_image_url
-    post.volunteer_start_timestamp = datetime.now(ZoneInfo("Asia/Kolkata")) #can use a random timezone here,i used ist
+    post.volunteer_start_timestamp = datetime.now(ZoneInfo("Asia/Kolkata"))
     
     await db.commit()
     
@@ -350,7 +200,6 @@ async def start_cleanup_work(
     background_tasks.add_task(verify_volunteer_post_ml, post.id, start_image_url)
     
     #CRITICAL FIX: Re-fetch with relationships
-    # (without this, FastAPI crashes when trying to serialize 'author', 'comments', etc.)
     query = (
         select(models.Post)
         .options(
@@ -358,7 +207,7 @@ async def start_cleanup_work(
             selectinload(models.Post.likes),
             selectinload(models.Post.comments).selectinload(models.Comment.author),
             selectinload(models.Post.resolved_by),
-            selectinload(models.Post.volunteer) # Load volunteer too
+            selectinload(models.Post.volunteer)
         )
         .where(models.Post.id == post_id)
     )
@@ -370,7 +219,7 @@ async def start_cleanup_work(
 @router.post("/{post_id}/submit_proof", response_model=schemas.Post)
 async def submit_cleanup_proof(
     post_id: int,
-    end_image_url: str = Body(..., embed=True), # Expect JSON: {"end_image_url": "..."}
+    end_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
@@ -385,15 +234,14 @@ async def submit_cleanup_proof(
     if post.status != models.TaskStatus.IN_PROGRESS:
         raise HTTPException(status_code=400, detail="Task not in progress")
 
-    #clculate Duration
+    #calculate Duration
     end_time = datetime.now(timezone.utc)
-    #ensures start_time is aware
     start_time = post.volunteer_start_timestamp.replace(tzinfo=timezone.utc) if post.volunteer_start_timestamp else None
     
     duration_min = 0
     if start_time:
         diff = end_time - start_time
-        duration_min = int(diff.total_seconds() / 60) # Minutes
+        duration_min = int(diff.total_seconds() / 60)
     
     #update DB (Clock Out)
     post.status = models.TaskStatus.PENDING_APPROVAL
@@ -476,7 +324,7 @@ async def author_create_request(
 ):
     new_post = models.Post(
         image_url=post_data.image_url,
-        image_public_id=post_data.image_public_id, # FIX: Uncommented this line
+        image_public_id=post_data.image_public_id,
         caption=post_data.caption,
         latitude=post_data.latitude,
         longitude=post_data.longitude,
@@ -499,7 +347,7 @@ async def author_create_request(
             selectinload(models.Post.likes),
             selectinload(models.Post.comments).selectinload(models.Comment.author),
             selectinload(models.Post.resolved_by),
-            selectinload(models.Post.volunteer) # Added volunteer
+            selectinload(models.Post.volunteer)
         )
         .where(models.Post.id == new_post.id)
     )

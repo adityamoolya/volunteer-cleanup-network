@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'home_scaffold.dart'; // REQUIRED: Imports the main app layout
+import 'home_scaffold.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -10,21 +10,16 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
-  // Service to handle API calls
   final AuthService _authService = AuthService();
 
-  // UI State variables
-  bool _isLogin = true; // Toggle between Login and Register modes
+  bool _isLogin = true;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _obscurePassword = true;
 
-  // Text Controllers
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _emailController = TextEditingController(); // Only for registration
-
-  // App Theme Color
-  final Color _primaryColor = const Color(0xFF2E7D32); // Emerald Green
+  final TextEditingController _emailController = TextEditingController();
 
   @override
   void dispose() {
@@ -35,7 +30,6 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _submit() async {
-    // 1. Basic Validation
     if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() => _errorMessage = "Username and Password are required.");
       return;
@@ -46,7 +40,6 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    // 2. Start Loading
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -58,50 +51,60 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
-        // --- LOGIN FLOW ---
-        // The service throws an exception if login fails
         bool success = await _authService.login(username, password);
 
         if (success && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text("Login Successful!"),
-              backgroundColor: Colors.green,
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text("Login Successful!"),
+                ],
+              ),
+              backgroundColor: Color(0xFF2E7D32),
               duration: Duration(seconds: 1),
             ),
           );
 
-          // 🚀 NAVIGATION LOGIC:
-          // Replaces the Auth Screen with the Home Scaffold (Dashboard + Feed)
           Navigator.pushReplacement(
-              context,
-              // FIX: Removed 'const' keyword here to prevent the error
-              MaterialPageRoute(builder: (_) => HomeScaffold())
+            context,
+            MaterialPageRoute(builder: (_) => const HomeScaffold()),
           );
         }
       } else {
-        // --- REGISTER FLOW ---
         await _authService.register(username, email, password);
 
         if (mounted) {
-          // If successful, switch to Login mode so they can sign in
           setState(() {
             _isLogin = true;
-            _errorMessage = "Account created successfully! Please log in.";
+            _errorMessage = null;
           });
-          // Clear fields
+          
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white),
+                  SizedBox(width: 12),
+                  Text("Account created! Please log in."),
+                ],
+              ),
+              backgroundColor: Color(0xFF2E7D32),
+            ),
+          );
+          
           _usernameController.clear();
           _passwordController.clear();
           _emailController.clear();
         }
       }
     } catch (e) {
-      // Handle API errors (like "Incorrect password" or "Connection refused")
       setState(() {
         _errorMessage = e.toString();
       });
     } finally {
-      // 3. Stop Loading
       if (mounted) {
         setState(() {
           _isLoading = false;
@@ -113,139 +116,240 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // --- App Logo & Title ---
-              Icon(Icons.eco, size: 80, color: _primaryColor),
-              const SizedBox(height: 16),
-              Text(
-                "ReLeaf",
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryColor,
-                  letterSpacing: 1.2,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                _isLogin ? "Welcome Back, Hero" : "Join the Task Force",
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
-              ),
-              const SizedBox(height: 40),
-
-              // --- Error Display Box ---
-              if (_errorMessage != null)
+      backgroundColor: const Color(0xFF121212),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Logo & Title
                 Container(
-                  padding: const EdgeInsets.all(12),
-                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.shade200),
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        const Color(0xFF2E7D32).withOpacity(0.3),
+                        const Color(0xFF4CAF50).withOpacity(0.1),
+                      ],
+                    ),
                   ),
-                  child: Text(
-                    _errorMessage!,
-                    style: TextStyle(color: Colors.red.shade800),
-                    textAlign: TextAlign.center,
+                  child: const Icon(Icons.eco, size: 60, color: Color(0xFF4CAF50)),
+                ),
+                const SizedBox(height: 24),
+                const Text(
+                  "ReLeaf",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                    letterSpacing: 2,
                   ),
                 ),
-
-              // --- Input Fields ---
-              TextField(
-                controller: _usernameController,
-                decoration: const InputDecoration(
-                  labelText: "Username",
-                  prefixIcon: Icon(Icons.person_outline),
-                  border: OutlineInputBorder(),
+                const SizedBox(height: 8),
+                Text(
+                  _isLogin ? "Welcome Back, Hero" : "Join the Task Force",
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Colors.white54,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 48),
 
-              // Only show Email field if Registering
-              if (!_isLogin) ...[
-                TextField(
-                  controller: _emailController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: "Email Address",
-                    prefixIcon: Icon(Icons.email_outlined),
-                    border: OutlineInputBorder(),
+                // Error Message
+                if (_errorMessage != null)
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.error_outline, color: Colors.red),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.red),
+                          ),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                          onPressed: () => setState(() => _errorMessage = null),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                // Username Field
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TextField(
+                    controller: _usernameController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "Username",
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(Icons.person_outline, color: Colors.white54),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF1E1E1E),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
-              ],
 
-              TextField(
-                controller: _passwordController,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: "Password",
-                  prefixIcon: Icon(Icons.lock_outline),
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // --- Submit Button ---
-              ElevatedButton(
-                onPressed: _isLoading ? null : _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryColor,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: _isLoading
-                    ? const SizedBox(
-                    height: 20,
-                    width: 20,
-                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                )
-                    : Text(
-                    _isLogin ? "LOG IN" : "CREATE ACCOUNT",
-                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)
-                ),
-              ),
-
-              // --- Toggle Mode Button ---
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () {
-                  setState(() {
-                    _isLogin = !_isLogin;
-                    _errorMessage = null; // Clear old errors when switching
-                  });
-                },
-                child: RichText(
-                  text: TextSpan(
-                    text: _isLogin ? "New here? " : "Already have an account? ",
-                    style: const TextStyle(color: Colors.grey),
-                    children: [
-                      TextSpan(
-                        text: _isLogin ? "Register now" : "Log in",
-                        style: TextStyle(
-                          color: _primaryColor,
-                          fontWeight: FontWeight.bold,
+                // Email Field (Register only)
+                if (!_isLogin) ...[
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E1E1E),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: TextField(
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: "Email Address",
+                        labelStyle: const TextStyle(color: Colors.white54),
+                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                          borderSide: BorderSide.none,
                         ),
+                        filled: true,
+                        fillColor: const Color(0xFF1E1E1E),
                       ),
-                    ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                // Password Field
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TextField(
+                    controller: _passwordController,
+                    obscureText: _obscurePassword,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "Password",
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          color: Colors.white54,
+                        ),
+                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF1E1E1E),
+                    ),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 32),
+
+                // Submit Button
+                Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    gradient: _isLoading
+                        ? null
+                        : const LinearGradient(
+                            colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                          ),
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: _isLoading
+                        ? null
+                        : [
+                            BoxShadow(
+                              color: const Color(0xFF2E7D32).withOpacity(0.3),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _submit,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      disabledBackgroundColor: const Color(0xFF1E1E1E),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: _isLoading
+                        ? const SizedBox(
+                            height: 24,
+                            width: 24,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : Text(
+                            _isLogin ? "LOG IN" : "CREATE ACCOUNT",
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                  ),
+                ),
+
+                // Toggle Mode Button
+                const SizedBox(height: 24),
+                TextButton(
+                  onPressed: () {
+                    setState(() {
+                      _isLogin = !_isLogin;
+                      _errorMessage = null;
+                    });
+                  },
+                  child: RichText(
+                    text: TextSpan(
+                      text: _isLogin ? "New here? " : "Already have an account? ",
+                      style: const TextStyle(color: Colors.white54),
+                      children: [
+                        TextSpan(
+                          text: _isLogin ? "Register now" : "Log in",
+                          style: const TextStyle(
+                            color: Color(0xFF4CAF50),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
