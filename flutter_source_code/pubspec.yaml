@@ -29,9 +29,11 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   url_launcher: ^6.3.2
+  cached_network_image: ^3.3.0
   flutter:
     sdk: flutter
   flutter_dotenv: ^5.1.0
+
 
   # --- REQUIRED FOR AUTH (Current Step) ---
   # Powerful HTTP client for API calls

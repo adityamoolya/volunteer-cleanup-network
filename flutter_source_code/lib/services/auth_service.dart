@@ -4,12 +4,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AuthService {
-  // ⚠️ NETWORK CONFIGURATION NOTE:
-  // Android Emulator: 'http://10.0.2.2:8000'
-  // Physical Device: Use your PC's LAN IP (e.g., 'http://192.168.1.5:8000')
-  // static const String baseUrl = 'http://10.0.2.2:8000';
-  // static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
-  // static final String baseUrl = dotenv.env['BACKEND_API'] ?? '';
   static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
 
   final Dio _dio = Dio();
@@ -27,7 +21,6 @@ class AuthService {
   }
 
   // --- LOGIN ---
-  // inside AuthService class
   Future<bool> login(String username, String password) async {
     try {
       final response = await _dio.post(
@@ -40,8 +33,14 @@ class AuthService {
 
       if (response.statusCode == 200) {
         final token = response.data['access_token'];
-        // Persist the token to secure storage
+
+        // 🔧 CRITICAL: Store the token
         await _storage.write(key: 'jwt_token', value: token);
+
+        // 🔧 DEBUG: Verify it was stored
+        final storedToken = await _storage.read(key: 'jwt_token');
+        print("✅ Token stored successfully: ${storedToken?.substring(0, 20)}...");
+
         return true;
       }
       return false;
@@ -54,7 +53,6 @@ class AuthService {
   // --- REGISTER ---
   Future<bool> register(String username, String email, String password) async {
     try {
-      // UPDATED PATH: /auth/register (was /api/auth/register)
       final response = await _dio.post(
         '/auth/register',
         data: {
@@ -71,12 +69,17 @@ class AuthService {
     }
   }
 
+  // --- LOGOUT ---
   Future<void> logout() async {
     await _storage.delete(key: 'jwt_token');
+    print("🔓 Logged out - token deleted");
   }
 
+  // --- CHECK LOGIN STATUS ---
   Future<bool> isLoggedIn() async {
     String? token = await _storage.read(key: 'jwt_token');
-    return token != null;
+    final hasToken = token != null && token.isNotEmpty;
+    print("🔐 isLoggedIn check: $hasToken");
+    return hasToken;
   }
 }

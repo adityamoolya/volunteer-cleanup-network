@@ -183,7 +183,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       // 2. Create Post with Image URL
       bool success = await _feedService.createPost(
         uploadResult['url']!,
-        uploadResult['public_id']!,
         _captionController.text.trim(),
         _currentPosition!.latitude,
         _currentPosition!.longitude,

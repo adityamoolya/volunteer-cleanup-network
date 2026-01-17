@@ -3,15 +3,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/feed_service.dart';
 
 class ContributeDialog extends StatefulWidget {
   final int postId;
+  final double postLatitude;
+  final double postLongitude;
   final VoidCallback onSuccess;
 
   const ContributeDialog({
     super.key,
     required this.postId,
+    required this.postLatitude,
+    required this.postLongitude,
     required this.onSuccess,
   });
 
@@ -23,11 +28,90 @@ class _ContributeDialogState extends State<ContributeDialog> {
   final FeedService _feedService = FeedService();
   final ImagePicker _picker = ImagePicker();
 
-  File? _proofImage;
+  File? _startImage;
   bool _isUploading = false;
   String? _errorMessage;
 
-  // --- PICK IMAGE FROM CAMERA ---
+  // Geofencing state
+  bool _isCheckingLocation = true;
+  bool _isWithinRange = false;
+  double? _currentDistance;
+  Position? _currentPosition;
+
+  static const double REQUIRED_PROXIMITY_METERS = 100.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkProximity();
+  }
+
+  // --- GEOFENCING CHECK ---
+  Future<void> _checkProximity() async {
+    setState(() {
+      _isCheckingLocation = true;
+      _errorMessage = null;
+    });
+
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        setState(() {
+          _errorMessage = "Location services are disabled. Please enable GPS.";
+          _isCheckingLocation = false;
+        });
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          setState(() {
+            _errorMessage = "Location permission denied.";
+            _isCheckingLocation = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        setState(() {
+          _errorMessage = "Location permission permanently denied.";
+          _isCheckingLocation = false;
+        });
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      double distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        widget.postLatitude,
+        widget.postLongitude,
+      );
+
+      setState(() {
+        _currentPosition = position;
+        _currentDistance = distance;
+        _isWithinRange = distance <= REQUIRED_PROXIMITY_METERS;
+        _isCheckingLocation = false;
+
+        if (!_isWithinRange) {
+          _errorMessage = "You must be within ${REQUIRED_PROXIMITY_METERS.toInt()}m of the site to start. Current distance: ${distance.toInt()}m";
+        }
+      });
+    } catch (e) {
+      setState(() {
+        _errorMessage = "Failed to get location: $e";
+        _isCheckingLocation = false;
+      });
+    }
+  }
+
   Future<void> _pickFromCamera() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -39,7 +123,7 @@ class _ContributeDialogState extends State<ContributeDialog> {
 
       if (photo != null) {
         setState(() {
-          _proofImage = File(photo.path);
+          _startImage = File(photo.path);
           _errorMessage = null;
         });
       }
@@ -48,7 +132,6 @@ class _ContributeDialogState extends State<ContributeDialog> {
     }
   }
 
-  // --- PICK IMAGE FROM GALLERY ---
   Future<void> _pickFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -60,7 +143,7 @@ class _ContributeDialogState extends State<ContributeDialog> {
 
       if (image != null) {
         setState(() {
-          _proofImage = File(image.path);
+          _startImage = File(image.path);
           _errorMessage = null;
         });
       }
@@ -69,7 +152,6 @@ class _ContributeDialogState extends State<ContributeDialog> {
     }
   }
 
-  // --- SHOW IMAGE SOURCE PICKER ---
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
@@ -110,10 +192,14 @@ class _ContributeDialogState extends State<ContributeDialog> {
     );
   }
 
-  // --- SUBMIT PROOF ---
-  Future<void> _submitProof() async {
-    if (_proofImage == null) {
-      setState(() => _errorMessage = "Please select a proof image.");
+  Future<void> _submitClockIn() async {
+    if (_startImage == null) {
+      setState(() => _errorMessage = "Please select a 'before' photo.");
+      return;
+    }
+
+    if (!_isWithinRange) {
+      setState(() => _errorMessage = "You must be within range to start work.");
       return;
     }
 
@@ -123,28 +209,28 @@ class _ContributeDialogState extends State<ContributeDialog> {
     });
 
     try {
-      // 1. Upload proof image to Cloudinary
-      final uploadResult = await _feedService.uploadImage(_proofImage!);
+      // 1. Upload image to Cloudinary
+      final uploadResult = await _feedService.uploadImage(_startImage!);
 
       if (uploadResult == null) {
         throw "Image upload failed";
       }
 
-      // 2. Submit proof to backend
-      bool success = await _feedService.submitProof(
+      // 2. Start work (Clock In)
+      bool success = await _feedService.startWork(
         widget.postId,
         uploadResult['url']!,
       );
 
       if (success && mounted) {
-        Navigator.pop(context); // Close dialog
+        Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text("Proof submitted! Waiting for approval."),
-            backgroundColor: Colors.orange,
+            content: Text("Clocked in! You can now start the cleanup."),
+            backgroundColor: Colors.green,
           ),
         );
-        widget.onSuccess(); // Refresh feed
+        widget.onSuccess();
       }
     } catch (e) {
       setState(() => _errorMessage = e.toString());
@@ -165,12 +251,12 @@ class _ContributeDialogState extends State<ContributeDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // --- HEADER ---
+            // Header
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 const Text(
-                  "Submit Proof",
+                  "Start Cleanup",
                   style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 IconButton(
@@ -180,14 +266,98 @@ class _ContributeDialogState extends State<ContributeDialog> {
               ],
             ),
             const SizedBox(height: 10),
-            const Text(
-              "Upload a photo showing the cleaned area",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
+
+            // Location Status
+            if (_isCheckingLocation)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    SizedBox(width: 12),
+                    Text("Checking your location..."),
+                  ],
+                ),
+              )
+            else if (_isWithinRange)
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.green.shade200),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green.shade800),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        "You're within range! (${_currentDistance?.toInt()}m away)",
+                        style: TextStyle(color: Colors.green.shade800),
+                      ),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.orange.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.location_off, color: Colors.orange.shade800),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            "You're ${_currentDistance?.toInt() ?? '?'}m away",
+                            style: TextStyle(
+                              color: Colors.orange.shade800,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Please move within ${REQUIRED_PROXIMITY_METERS.toInt()}m of the site to start.",
+                      style: TextStyle(color: Colors.orange.shade800, fontSize: 12),
+                    ),
+                    const SizedBox(height: 8),
+                    TextButton.icon(
+                      onPressed: _checkProximity,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text("Refresh Location"),
+                      style: TextButton.styleFrom(
+                        padding: EdgeInsets.zero,
+                        minimumSize: const Size(0, 0),
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             const SizedBox(height: 20),
 
-            // --- ERROR MESSAGE ---
-            if (_errorMessage != null)
+            // Error Message
+            if (_errorMessage != null && !_errorMessage!.contains("within"))
               Container(
                 padding: const EdgeInsets.all(12),
                 margin: const EdgeInsets.only(bottom: 20),
@@ -210,32 +380,48 @@ class _ContributeDialogState extends State<ContributeDialog> {
                 ),
               ),
 
-            // --- IMAGE PICKER ---
+            const Text(
+              "Upload a 'before' photo at the site",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            const SizedBox(height: 12),
+
+            // Image Picker
             GestureDetector(
-              onTap: _showImageSourceDialog,
+              onTap: _isWithinRange ? _showImageSourceDialog : null,
               child: Container(
                 height: 200,
                 decoration: BoxDecoration(
-                  color: Colors.grey[200],
+                  color: _isWithinRange ? Colors.grey[200] : Colors.grey[300],
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey[400]!),
+                  border: Border.all(
+                    color: _isWithinRange ? Colors.grey[400]! : Colors.grey[500]!,
+                  ),
                 ),
-                child: _proofImage == null
+                child: _startImage == null
                     ? Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(Icons.add_a_photo, size: 50, color: Colors.grey[600]),
+                    Icon(
+                      Icons.add_a_photo,
+                      size: 50,
+                      color: _isWithinRange ? Colors.grey[600] : Colors.grey[500],
+                    ),
                     const SizedBox(height: 10),
                     Text(
-                      "Tap to add proof photo",
-                      style: TextStyle(color: Colors.grey[600]),
+                      _isWithinRange
+                          ? "Tap to add 'before' photo"
+                          : "Move closer to unlock",
+                      style: TextStyle(
+                        color: _isWithinRange ? Colors.grey[600] : Colors.grey[500],
+                      ),
                     ),
                   ],
                 )
                     : ClipRRect(
                   borderRadius: BorderRadius.circular(12),
                   child: Image.file(
-                    _proofImage!,
+                    _startImage!,
                     fit: BoxFit.cover,
                     width: double.infinity,
                   ),
@@ -245,9 +431,9 @@ class _ContributeDialogState extends State<ContributeDialog> {
 
             const SizedBox(height: 20),
 
-            // --- SUBMIT BUTTON ---
+            // Submit Button
             ElevatedButton(
-              onPressed: _isUploading ? null : _submitProof,
+              onPressed: (_isUploading || !_isWithinRange) ? null : _submitClockIn,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF2E7D32),
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -264,9 +450,9 @@ class _ContributeDialogState extends State<ContributeDialog> {
                   strokeWidth: 2,
                 ),
               )
-                  : const Text(
-                "SUBMIT PROOF",
-                style: TextStyle(
+                  : Text(
+                _isWithinRange ? "CLOCK IN" : "OUT OF RANGE",
+                style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),

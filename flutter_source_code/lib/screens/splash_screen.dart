@@ -43,14 +43,17 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // Now that servers are up, check session persistence
+    // 🔧 FIX: This should check if token exists AND is valid
     bool loggedIn = await _startup.validateSession();
+
+    // 🔧 DEBUG: Print the result to see what's happening
+    print("🔐 Session validation result: $loggedIn");
 
     // Final check before navigating
     if (mounted) {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          // 🚨 FIX: Navigate to HomeScaffold to keep the bottom bar
           builder: (context) => loggedIn ? const HomeScaffold() : const AuthScreen(),
         ),
       );

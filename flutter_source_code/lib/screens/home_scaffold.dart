@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-// import 'dashboard_screen.dart';
 import 'feed_screen.dart';
-import 'profile_screen.dart'; // Import the new profile screen
+import 'mission_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScaffold extends StatefulWidget {
   const HomeScaffold({super.key});
@@ -14,9 +14,9 @@ class _HomeScaffoldState extends State<HomeScaffold> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    // const DashboardScreen(),
     const FeedScreen(),
-    const ProfileScreen(), // Added Profile Screen
+    const MissionsScreen(),
+    const ProfileScreen(),
   ];
 
   @override
@@ -26,22 +26,20 @@ class _HomeScaffoldState extends State<HomeScaffold> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) => setState(() => _currentIndex = index),
-        selectedItemColor: const Color(0xFF2E7D32), // Emerald Green
+        selectedItemColor: const Color(0xFF2E7D32),
         unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed, // Ensure labels are always visible
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard),
-            label: 'Dashboard',
+            icon: Icon(Icons.explore_outlined),
+            activeIcon: Icon(Icons.explore),
+            label: 'Explore',
           ),
-          // Renamed "Reports" to "Community"
           BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
-            label: 'Community',
+            icon: Icon(Icons.assignment_outlined),
+            activeIcon: Icon(Icons.assignment),
+            label: 'Missions',
           ),
-          // Added Profile Tab
           BottomNavigationBarItem(
             icon: Icon(Icons.person_outline),
             activeIcon: Icon(Icons.person),

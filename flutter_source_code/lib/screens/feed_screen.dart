@@ -4,7 +4,7 @@ import '../services/feed_service.dart';
 import '../models/post_model.dart';
 import 'post_detail_screen.dart';
 import 'create_post_screen.dart';
-import '../widgets/contribute_dialog.dart'; // ✅ NEW IMPORT
+import '../widgets/contribute_dialog.dart';
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -45,12 +45,14 @@ class _FeedScreenState extends State<FeedScreen> {
     }
   }
 
-  // ✅ NEW: Show contribute dialog
-  void _showContributeDialog(int postId) {
+  // Updated to pass location data
+  void _showContributeDialog(Post post) {
     showDialog(
       context: context,
       builder: (context) => ContributeDialog(
-        postId: postId,
+        postId: post.id,
+        postLatitude: post.latitude,
+        postLongitude: post.longitude,
         onSuccess: _refreshFeed,
       ),
     );
@@ -59,7 +61,11 @@ class _FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Community Reports")),
+      appBar: AppBar(
+        title: const Text("Community Reports"),
+        backgroundColor: const Color(0xFF2E7D32),
+        foregroundColor: Colors.white,
+      ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: const Color(0xFF2E7D32),
         onPressed: () async {
@@ -105,7 +111,6 @@ class _FeedScreenState extends State<FeedScreen> {
   }
 
   Widget _buildFeedCard(Post post) {
-    // Check status
     bool isOpen = post.status.toLowerCase() == 'open';
     bool isPending = post.status.toLowerCase() == 'pending';
 
@@ -115,7 +120,6 @@ class _FeedScreenState extends State<FeedScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // --- IMAGE + STATUS BADGE ---
           GestureDetector(
             onTap: () {
               Navigator.push(
@@ -142,7 +146,6 @@ class _FeedScreenState extends State<FeedScreen> {
                     ),
                   ),
                 ),
-                // Status Badge
                 Positioned(
                   top: 10,
                   right: 10,
@@ -152,13 +155,11 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
 
-          // --- CONTENT SECTION ---
           Padding(
             padding: const EdgeInsets.all(12.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Author & Location Row
                 Row(
                   children: [
                     CircleAvatar(
@@ -182,7 +183,6 @@ class _FeedScreenState extends State<FeedScreen> {
                       tooltip: "Navigate",
                       visualDensity: VisualDensity.compact,
                     ),
-                    // ✅ FIXED: Make comments button separately clickable
                     InkWell(
                       onTap: () {
                         Navigator.push(
@@ -211,7 +211,6 @@ class _FeedScreenState extends State<FeedScreen> {
 
                 const SizedBox(height: 8),
 
-                // Caption - Make it tappable too
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
@@ -227,13 +226,12 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ),
 
-                // ✅ NEW: CONTRIBUTE BUTTON (Only show if OPEN status)
                 if (isOpen) ...[
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => _showContributeDialog(post.id),
+                      onPressed: () => _showContributeDialog(post),
                       icon: const Icon(Icons.volunteer_activism, size: 18),
                       label: const Text("CONTRIBUTE"),
                       style: OutlinedButton.styleFrom(
@@ -247,7 +245,6 @@ class _FeedScreenState extends State<FeedScreen> {
                   ),
                 ],
 
-                // ✅ NEW: PENDING INDICATOR (Show if pending verification)
                 if (isPending && post.resolvedBy != null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -296,7 +293,7 @@ class _FeedScreenState extends State<FeedScreen> {
         color = Colors.orange;
         icon = Icons.hourglass_top;
         break;
-      default: // 'open'
+      default:
         color = Colors.blue;
         icon = Icons.error_outline;
     }

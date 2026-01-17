@@ -5,8 +5,8 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/post_model.dart';
 
 class FeedService {
-  // static const String baseUrl = 'https://env-el-rvce-production.up.railway.app';
-  static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
+  // 🔧 UPDATED TO MATCH DEPLOYED BACKEND
+  static const String baseUrl = 'https://env-el-backend-api.onrender.com';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -16,10 +16,21 @@ class FeedService {
       InterceptorsWrapper(
         onRequest: (options, handler) async {
           final token = await _storage.read(key: 'jwt_token');
+          print("🔍 [${options.path}] Token exists: ${token != null}");
           if (token != null) {
+            print("🔑 Adding token: ${token.substring(0, 30)}...");
             options.headers['Authorization'] = 'Bearer $token';
+          } else {
+            print("❌ NO TOKEN FOUND IN STORAGE!");
           }
           return handler.next(options);
+        },
+        onError: (error, handler) {
+          print("❌ Request failed:");
+          print("   Path: ${error.requestOptions.path}");
+          print("   Status: ${error.response?.statusCode}");
+          print("   Headers sent: ${error.requestOptions.headers}");
+          return handler.next(error);
         },
       ),
     );
@@ -85,7 +96,7 @@ class FeedService {
         '/posts/',
         data: {
           "image_url": imageUrl,
-          "image_public_id": publicId,
+          "image_public_id": publicId,  // Backend schema requires this
           "caption": caption,
           "latitude": lat,
           "longitude": lng,
@@ -98,24 +109,41 @@ class FeedService {
     }
   }
 
-  // --- 4. SUBMIT PROOF ---
-  Future<bool> submitProof(int postId, String proofUrl) async {
+  // --- 4. START WORK (Clock In) ---
+  Future<bool> startWork(int postId, String startImageUrl) async {
     try {
       final response = await _dio.post(
-        '/posts/$postId/submit-proof',
-        queryParameters: {'proof_image_url': proofUrl},
+        '/posts/$postId/start_work',
+        data: {'start_image_url': startImageUrl},
+      );
+      return response.statusCode == 200;
+    } catch (e) {
+      print("Start work error: $e");
+      throw "Failed to clock in";
+    }
+  }
+
+  // --- 5. SUBMIT PROOF (Clock Out) ---
+  Future<bool> submitCleanupProof(int postId, String endImageUrl) async {
+    try {
+      final response = await _dio.post(
+        '/posts/$postId/submit_proof',
+        data: {'end_image_url': endImageUrl},
       );
       return response.statusCode == 200;
     } catch (e) {
       print("Submit proof error: $e");
-      throw "Failed to submit proof";
+      throw "Failed to submit completion proof";
     }
   }
 
-  // --- 5. APPROVE REQUEST ---
+  // --- 6. APPROVE REQUEST ---
   Future<bool> approveRequest(int postId) async {
     try {
-      final response = await _dio.post('/posts/$postId/approve');
+      final response = await _dio.post(
+        '/posts/$postId/approve',
+        data: {'final_points': 50}, // You can make this dynamic
+      );
       return response.statusCode == 200;
     } catch (e) {
       print("Approve error: $e");
@@ -123,7 +151,7 @@ class FeedService {
     }
   }
 
-  // --- 6. ADD COMMENT ---
+  // --- 7. ADD COMMENT ---
   Future<bool> postComment(int postId, String content) async {
     try {
       final response = await _dio.post(
