@@ -28,7 +28,7 @@ router = APIRouter(
 
 
 #this runs in the background. it calls the ML service and updates the DB
-async def process_post_ml(post_id: int, image_url: str):
+async def process_post_ml(post_id: str, image_url: str):
     
     try:
         #calling ML service and passing the public link thatt cloudinary gave 
@@ -100,7 +100,7 @@ async def get_feed(
 '''
 @router.patch("/{post_id}", response_model=schemas.Post)
 async def author_update_post(
-    post_id: int,
+    post_id: str,
     post_update: schemas.PostUpdate,
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
@@ -148,7 +148,7 @@ async def author_update_post(
 
 
 #NEW BACKGROUND TASK: VERIFY VOLUNTEER PHOTO , phase1
-async def verify_volunteer_post_ml(post_id: int, image_url: str):
+async def verify_volunteer_post_ml(post_id: str, image_url: str):
     try:
         async with httpx.AsyncClient() as client:
             # call the same ML service to check the new photo
@@ -173,7 +173,7 @@ async def verify_volunteer_post_ml(post_id: int, image_url: str):
 # START WORK (Clock In) by volunteer
 @router.post("/{post_id}/start_work", response_model=schemas.Post)
 async def start_cleanup_work(
-    post_id: int,
+    post_id: str,
     background_tasks: BackgroundTasks,
     start_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
@@ -218,7 +218,7 @@ async def start_cleanup_work(
 # SUBMIT PROOF (Clock Out) 
 @router.post("/{post_id}/submit_proof", response_model=schemas.Post)
 async def submit_cleanup_proof(
-    post_id: int,
+    post_id: str,
     end_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
@@ -270,7 +270,7 @@ async def submit_cleanup_proof(
 # APPROVE & PAY (Resolution) 
 @router.post("/{post_id}/approve", response_model=schemas.Post)
 async def approve_work(
-    post_id: int,
+    post_id: str,
     final_points: int = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)

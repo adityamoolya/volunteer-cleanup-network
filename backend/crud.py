@@ -14,7 +14,7 @@ def get_password_hash(password):
 
 # --- USER OPERATIONS ---
 
-async def get_user(db: AsyncSession, user_id: int):
+async def get_user(db: AsyncSession, user_id: str):
     query = select(models.User).where(models.User.id == user_id)
     result = await db.execute(query)
     return result.scalars().first()
@@ -42,16 +42,16 @@ async def create_user(db: AsyncSession, user: schemas.UserCreate):
     await db.refresh(db_user)
     return db_user
 
-# --- POST OPERATIONS (This was missing!) ---
+# --- POST OPERATIONS  ---
 
-async def get_post(db: AsyncSession, post_id: int):
+async def get_post(db: AsyncSession, post_id: str):
     query = select(models.Post).where(models.Post.id == post_id)
     result = await db.execute(query)
     return result.scalars().first()
 
 # --- COMMENT OPERATIONS ---
 
-async def create_comment(db: AsyncSession, comment: schemas.CommentCreate, user_id: int, post_id: int):
+async def create_comment(db: AsyncSession, comment: schemas.CommentCreate, user_id: str, post_id: str):
     db_comment = models.Comment(
         content=comment.content,
         author_id=user_id,
@@ -72,7 +72,7 @@ async def create_comment(db: AsyncSession, comment: schemas.CommentCreate, user_
     result = await db.execute(query)
     return result.scalars().first()
 
-async def get_comments_by_post(db: AsyncSession, post_id: int):
+async def get_comments_by_post(db: AsyncSession, post_id: str):
     query = (
         select(models.Comment)
         .where(models.Comment.post_id == post_id)

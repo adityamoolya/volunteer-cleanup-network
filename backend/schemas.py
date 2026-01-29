@@ -29,7 +29,7 @@ class UserPublic(BaseModel):
 
 # FULL User Schema (For /me endpoint)
 class User(UserBase):
-    id: int
+    id: str
     points: int
     created_at: datetime
     # is_active REMOVED
@@ -45,17 +45,17 @@ class CommentCreate(CommentBase):
     content: str
 
 class Comment(CommentBase):
-    id: int
-    author_id: int
-    post_id: int
+    id: str
+    author_id: str
+    post_id: str
     created_at: datetime
     author: Optional[UserPublic] = None # Use safe user here
     class Config:
         from_attributes = True
 
 class Like(BaseModel):
-    user_id: int
-    post_id: int
+    user_id: str
+    post_id: str
     class Config:
         from_attributes = True
 
@@ -82,16 +82,16 @@ class PostUpdate(BaseModel):
 
     
 class Post(PostBase):
-    id: int
+    id: str
     status: TaskStatus
     proof_image_url: Optional[str] = None
     created_at: datetime
-    author_id: int
-    resolved_by_id: Optional[int] = None
+    author_id: str
+    resolved_by_id: Optional[str] = None
     predicted_class: Optional[str] = None 
     points: int
 
-    volunteer_id: Optional[int] = None
+    volunteer_id: Optional[str] = None
     start_image_url: Optional[str] = None
     end_image_url: Optional[str] = None
     volunteer_start_timestamp: Optional[datetime] = None
