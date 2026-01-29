@@ -27,72 +27,10 @@ router = APIRouter(
     tags=["Posts"]
 )
 
-
-#this runs in the background. it calls the ML service and updates the DB
-async def process_post_ml(post_id: str, image_url: str):
-    
-    try:
-        #calling ML service and passing the public link thatt cloudinary gave 
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(ml_url, json={"image_url": image_url}, timeout=30.0)
-            
-        if resp.status_code == 200:
-            data = resp.json()
-            #extract data
-            logger.info("ML SERVICE RESPONSE",data) 
-            pred_class = data.get("predicted_class", "Unknown") 
-            #if cat is misssing , defaults to unknown , points is converted to integer
-            points = int(data.get("points", 0))         
-            
-            #update Database
-            #a FRESH session because the request session is closed
-            async with AsyncSessionLocal() as db:
-                result = await db.execute(select(models.Post).where(models.Post.id == post_id))
-                post = result.scalars().first()
-                if post:
-                    post.predicted_class = pred_class
-                    post.points = points
-                    await db.commit()
-                    logger.info(f"[Background] Post {post_id} updated: {pred_class} ({points} pts)")
-        else:
-            logger.warning(f" [Background-----] ML Service returned {resp.status_code}")
-
-    except Exception as e:
-        logger.error(f"[Background-----] ML Error: {e}")
-        
-        # FAILSAFE
-        async with AsyncSessionLocal() as db:
-            result = await db.execute(select(models.Post).where(models.Post.id == post_id))
-            post = result.scalars().first()
-            if post:
-                post.predicted_class = "ERROR"
-                post.points = 0
-                await db.commit()
-
-
-# GET FEED for community folks - FIXED with volunteer selectinload
+# GET FEED for community folks 
 @router.get("/", response_model=List[schemas.Post])
-async def get_feed(
-    skip: int = 0, 
-    limit: int = 20, 
-    db: AsyncSession = Depends(get_db)
-):
-    query = (
-        select(models.Post)
-        .options(
-            selectinload(models.Post.author),       
-            selectinload(models.Post.likes),        
-            selectinload(models.Post.comments).selectinload(models.Comment.author), 
-            selectinload(models.Post.resolved_by),
-            selectinload(models.Post.volunteer)  # FIXED: Added to prevent async lazy loading error
-        )
-        .where(models.Post.status != models.TaskStatus.COMPLETED)
-        .order_by(desc(models.Post.created_at))
-        .offset(skip)
-        .limit(limit)
-    )
-    result = await db.execute(query)
-    return result.scalars().all()
+async def get_feed(skip: int = 0, limit: int = 20, db: AsyncSession = Depends(get_db)):
+    return await post_service.get_feed(db, skip, limit)
 
 
 ''' just in case ML spits wrong result we give author option 
@@ -174,46 +112,24 @@ async def verify_volunteer_post_ml(post_id: str, image_url: str):
 # START WORK (Clock In) by volunteer
 @router.post("/{post_id}/start_work", response_model=schemas.Post)
 async def start_cleanup_work(
-    post_id: str,
+    post_id: str, # UUID!
     background_tasks: BackgroundTasks,
     start_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     current_user: models.User = Depends(get_current_active_user)
 ):
-    # 1. Fetch & Verify
-    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
-    post = result.scalars().first()
-    
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
-    if post.status != models.TaskStatus.OPEN:
-        raise HTTPException(status_code=400, detail="Task is not open")
-
-    #update DB (Clock In)
-    post.status = models.TaskStatus.IN_PROGRESS
-    post.volunteer_id = current_user.id
-    post.start_image_url = start_image_url
-    post.volunteer_start_timestamp = datetime.now(ZoneInfo("Asia/Kolkata"))
-    
-    await db.commit()
-    
-    #triggers background verification
-    background_tasks.add_task(verify_volunteer_post_ml, post.id, start_image_url)
-    
-    #CRITICAL FIX: Re-fetch with relationships
-    query = (
-        select(models.Post)
-        .options(
-            selectinload(models.Post.author),
-            selectinload(models.Post.likes),
-            selectinload(models.Post.comments).selectinload(models.Comment.author),
-            selectinload(models.Post.resolved_by),
-            selectinload(models.Post.volunteer)
-        )
-        .where(models.Post.id == post_id)
+    # The router handles the HTTP specific stuff (404 errors, 403 errors)
+    updated_post = await post_service.start_work(
+        db, post_id, current_user.id, start_image_url
     )
-    result = await db.execute(query)
-    return result.scalars().first()
+    
+    if not updated_post:
+        raise HTTPException(status_code=400, detail="Post not found or not open")
+        
+    # Trigger background task from the service layer
+    background_tasks.add_task(ml_service.verify_volunteer_post_ml, post_id, start_image_url)
+    
+    return updated_post
 
 
 # SUBMIT PROOF (Clock Out) 
@@ -338,7 +254,7 @@ async def author_create_request(
     await db.commit()
     await db.refresh(new_post)
     
-    background_tasks.add_task(process_post_ml, new_post.id, new_post.image_url)
+    background_tasks.add_task(ml_service.process_post_ml, new_post.id, new_post.image_url)
     
     # FIX: Re-fetch with ALL relationships including volunteer and comment authors
     query = (
