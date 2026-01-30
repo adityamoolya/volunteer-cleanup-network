@@ -1,0 +1,11 @@
+# data.yaml
+path: D:/El/envirormentEL/train_ml/archive (2)/YOLO-Waste-Detection-1/YOLO-Waste-Detection-1 # <--- ROOT PATH
+train: train/images
+val: valid/images
+test: test/images
+
+# Number of classes (Check your dataset description, usually this dataset has 1 or 4 classes depending on version)
+# Based on Spellsharp's dataset, it usually has 1 class "Trash" or specific types. 
+# PLEASE CHECK your 'classes.txt' in the dataset to confirm these names!
+nc: 1  
+names: ['trash']

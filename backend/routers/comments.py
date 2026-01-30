@@ -16,7 +16,7 @@ router = APIRouter(
 # --- Create Comment ---
 @router.post("/", response_model=schemas.Comment)
 async def create_comment(
-    post_id: int,
+    post_id: str,
     comment: schemas.CommentCreate,
     db: AsyncSession = Depends(get_db),
     current_user: schemas.User = Depends(get_current_active_user)
@@ -37,7 +37,7 @@ async def create_comment(
 # --- Get Comments for a Post ---
 @router.get("/", response_model=List[schemas.Comment])
 async def read_comments(
-    post_id: int,
+    post_id: str,
     db: AsyncSession = Depends(get_db)
 ):
     return await crud.get_comments_by_post(db, post_id=post_id)

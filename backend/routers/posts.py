@@ -15,7 +15,7 @@ from auth_utils import get_current_active_user
 import os
 from datetime import datetime, timezone
 import logging
-import post_service, ml_service
+from . import post_service, ml_service
 logger = logging.getLogger(__name__)
 
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
