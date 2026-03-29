@@ -3,44 +3,25 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload # <--- Imported for relationship loading
-from passlib.context import CryptContext
+from auth.models import User
 import models, schemas
-
-# Setup password hashing (Argon2)
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-
-def get_password_hash(password):
-    return pwd_context.hash(password)
 
 # --- USER OPERATIONS ---
 
 async def get_user(db: AsyncSession, user_id: str):
-    query = select(models.User).where(models.User.id == user_id)
+    query = select(User).where(User.id == user_id)
     result = await db.execute(query)
     return result.scalars().first()
 
 async def get_user_by_email(db: AsyncSession, email: str):
-    query = select(models.User).where(models.User.email == email)
+    query = select(User).where(User.email == email)
     result = await db.execute(query)
     return result.scalars().first()
 
 async def get_user_by_username(db: AsyncSession, username: str):
-    query = select(models.User).where(models.User.username == username)
+    query = select(User).where(User.username == username)
     result = await db.execute(query)
     return result.scalars().first()
-
-async def create_user(db: AsyncSession, user: schemas.UserCreate):
-    hashed_password = get_password_hash(user.password)
-    db_user = models.User(
-        username=user.username,
-        email=user.email,
-        hashed_password=hashed_password,
-        points=0
-    )
-    db.add(db_user)
-    await db.commit()
-    await db.refresh(db_user)
-    return db_user
 
 # --- POST OPERATIONS  ---
 

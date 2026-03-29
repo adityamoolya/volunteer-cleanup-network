@@ -6,7 +6,8 @@ from typing import List
 
 import schemas, crud
 from database import get_db
-from auth_utils import get_current_active_user
+from auth.dependencies import get_current_user
+from auth.models import User
 
 router = APIRouter(
     prefix="/comments",
@@ -19,7 +20,7 @@ async def create_comment(
     post_id: str,
     comment: schemas.CommentCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: schemas.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     # 1. Verify post exists
     db_post = await crud.get_post(db, post_id=post_id)

@@ -9,7 +9,6 @@ from database import engine, Base
 #makes .env vars avaible to router files also
 BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
-import logging
 
 # CONFIGURE logger
 logging.basicConfig(
@@ -18,7 +17,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-from routers import auth, posts, comments, images, users
+from auth.models import User, RefreshToken, OAuthAccount
+from auth.routers import auth as auth_router, oauth as oauth_router
+from routers import posts, comments, images, users
 
 # --- Lifespan event for startup ---
 @asynccontextmanager
@@ -48,15 +49,12 @@ app.add_middleware(
 )
 
 # Register Routers 
-app.include_router(auth.router, prefix="/auth") #handles authenitcation
+app.include_router(auth_router.router, prefix="/auth", tags=["auth"])
+app.include_router(oauth_router.router, prefix="/oauth", tags=["oauth"])
 app.include_router(users.router)    # handles users data and stats
 app.include_router(posts.router)   # handles the posts router
 app.include_router(comments.router) # self explainatory ig
 app.include_router(images.router) #uploads images to cloudinary
-'''TODO : in /images router use TRASH_CLASSIFIER microservice 
-        to judge how muh points the user gets, based on the type 
-        of trash they post  
-'''
 
 
 #checks if api is up or not
@@ -73,4 +71,3 @@ if __name__ == "__main__":
         reload=True
         
     )
-    

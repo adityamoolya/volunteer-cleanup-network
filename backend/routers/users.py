@@ -6,9 +6,11 @@ from sqlalchemy import select, desc, func, or_
 from sqlalchemy.orm import selectinload
 from typing import List
 
-import schemas, models
+import schemas
+from auth.models import User
 from database import get_db
-from auth_utils import get_current_active_user
+from auth.dependencies import get_current_user
+import models
 
 router = APIRouter(
     prefix="/users",
@@ -18,7 +20,7 @@ router = APIRouter(
 # --- 1. PRIVATE PROFILE (Settings Page) ---
 # Returns email and full details. Only for the user themselves.
 @router.get("/me", response_model=schemas.User)
-async def read_users_me(current_user: models.User = Depends(get_current_active_user)):
+async def read_users_me(current_user: User = Depends(get_current_user)):
     return current_user
 
 # --- 2. DASHBOARD (Home Screen) ---
@@ -26,7 +28,7 @@ async def read_users_me(current_user: models.User = Depends(get_current_active_u
 @router.get("/profile/stats")
 async def get_my_stats(
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     # 1. Tasks I created
     created_q = select(func.count()).where(models.Post.author_id == current_user.id)
@@ -91,6 +93,6 @@ async def get_my_stats(
 @router.get("/leaderboard", response_model=List[schemas.UserPublic])
 async def get_leaderboard(db: AsyncSession = Depends(get_db)):
     # Fetch top 10 users by points
-    query = select(models.User).order_by(desc(models.User.points)).limit(10)
+    query = select(User).order_by(desc(User.points)).limit(10)
     result = await db.execute(query)
     return result.scalars().all()

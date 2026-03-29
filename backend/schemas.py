@@ -5,20 +5,7 @@ from typing import Optional, List
 from datetime import datetime
 from models import TaskStatus
 
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
 # --- User Schemas ---
-class UserBase(BaseModel):
-    username: str
-    email: EmailStr
-
-class UserCreate(UserBase):
-    password: str
 
 # SAFE User Schema (For Leaderboards/Feed)
 class UserPublic(BaseModel):
@@ -27,12 +14,13 @@ class UserPublic(BaseModel):
     class Config:
         from_attributes = True
 
-# FULL User Schema (For /me endpoint)
-class User(UserBase):
+# FULL User Schema (For /me endpoint and protected routes)
+class User(BaseModel):
     id: str
+    email: EmailStr
+    username: str
     points: int
     created_at: datetime
-    # is_active REMOVED
 
     class Config:
         from_attributes = True
@@ -66,9 +54,6 @@ class PostBase(BaseModel):
     caption: Optional[str] = None
     latitude: float
     longitude: float
-
-    # predicted_class: str  #added to handle ML micorservice result
-    # points: int
 
 class PostCreate(PostBase):
     predicted_class: Optional[str] = "Processing..."

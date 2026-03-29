@@ -1,9 +1,10 @@
 # backend/models.py
-import uuid   #using thid to move from integer based indexing to UUID ,36 bytes string
+import uuid
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Enum
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from database import Base
+from auth.models import User  # User now lives in auth module
 import enum
 
 class TaskStatus(str, enum.Enum):
@@ -13,32 +14,9 @@ class TaskStatus(str, enum.Enum):
     COMPLETED = "completed"           # points paid
     CANCELLED = "cancelled"           # if volunteer decides to cancel 
 
-class User(Base):
-    __tablename__ = "users"
-    
-    # id = Column(Integer, primary_key=True, index=True)
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    username = Column(String(50), unique=True, index=True)
-    email = Column(String(100), unique=True, index=True)
-    hashed_password = Column(String(255))
-    # is_active REMOVED
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    
-    points = Column(Integer, default=0)
-    
-    posts = relationship("Post", back_populates="author", foreign_keys="Post.author_id")
-    contribution_tasks = relationship("Post", back_populates="resolved_by", foreign_keys="Post.resolved_by_id")
-    comments = relationship("Comment", back_populates="author")
-    likes = relationship("Like", back_populates="user")
-
-    # relationship for tasks where this user is the volunteer
-    volunteer_tasks = relationship("Post", back_populates="volunteer", foreign_keys="Post.volunteer_id")
-    contribution_tasks = relationship("Post", back_populates="resolved_by", foreign_keys="Post.resolved_by_id")
-
 class Post(Base):
     __tablename__ = "posts"
 
-    # id = Column(Integer, primary_key=True, index=True)
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     #phase 1---author posts request 
     image_url = Column(String(500), nullable=False)
@@ -51,12 +29,10 @@ class Post(Base):
     points = Column(Integer, default=0)
     status = Column(Enum(TaskStatus), default=TaskStatus.OPEN)
     
-    # author_id = Column(Integer, ForeignKey("users.id"))
     author_id = Column(String(36), ForeignKey("users.id"))
     author = relationship("User", back_populates="posts", foreign_keys=[author_id])
 
     #Phase 2---- volunteer arrival (Clock In) 
-    # volunteer_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     volunteer_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     volunteer = relationship("User", back_populates="volunteer_tasks", foreign_keys=[volunteer_id])
     
@@ -70,7 +46,6 @@ class Post(Base):
     cleanup_duration_minutes = Column(Integer, nullable=True)   # calculated duration
     
     proof_image_url = Column(String(500), nullable=True)
-    # resolved_by_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     resolved_by_id = Column(String(36), ForeignKey("users.id"), nullable=True)
     resolved_by = relationship("User", back_populates="contribution_tasks", foreign_keys=[resolved_by_id])
     
@@ -83,13 +58,10 @@ class Post(Base):
 class Comment(Base):
     __tablename__ = "comments"
     
-    # id = Column(Integer, primary_key=True, index=True)
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     content = Column(Text)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
-    # author_id = Column(Integer, ForeignKey("users.id"))
-    # post_id = Column(Integer, ForeignKey("posts.id"))
     author_id = Column(String(36), ForeignKey("users.id"))
     post_id = Column(String(36), ForeignKey("posts.id"))
     
@@ -99,13 +71,9 @@ class Comment(Base):
 class Like(Base):
     __tablename__ = "likes"
     
-    # id = Column(Integer, primary_key=True, index=True)
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     
-    # user_id = Column(Integer, ForeignKey("users.id"))
-    # post_id = Column(Integer, ForeignKey("posts.id"))
     user_id = Column(String(36), ForeignKey("users.id"))
     post_id = Column(String(36), ForeignKey("posts.id"))
     user = relationship("User", back_populates="likes")
     post = relationship("Post", back_populates="likes")
-

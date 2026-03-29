@@ -3,8 +3,8 @@
 import os
 import logging
 import ssl
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+from sqlalchemy.orm import declarative_base
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,9 +18,7 @@ if not DATABASE_URL:
     raise ValueError("No DATABASE_URL found.")
 #making sure async drivers are used 
 if DATABASE_URL.startswith("postgresql://"):
-    # print(DATABASE_URL+"=======-==========================================")
     DATABASE_URL=DATABASE_URL.replace("postgresql://","postgresql+asyncpg://",1)
-    # print(DATABASE_URL+"--------------------------------------------------")
 
 elif "sqlite" in DATABASE_URL:
      
@@ -50,8 +48,10 @@ engine = create_async_engine(
 )
 # ------------------------------
 
-AsyncSessionLocal = sessionmaker(
-    engine, class_=AsyncSession, expire_on_commit=False
+AsyncSessionLocal = async_sessionmaker(
+    bind=engine,
+    class_=AsyncSession,
+    expire_on_commit=False
 )
 
 Base = declarative_base()

@@ -11,7 +11,8 @@ import httpx
 from database import get_db, AsyncSessionLocal
 import schemas, models
 from database import get_db
-from auth_utils import get_current_active_user
+from auth.dependencies import get_current_user
+from auth.models import User
 import os
 from datetime import datetime, timezone
 import logging
@@ -19,7 +20,7 @@ from . import post_service, ml_service
 logger = logging.getLogger(__name__)
 
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
-ml_url = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_urls")
+ml_url = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_urls") if CLASSIFIER_MICORSERVICE else None
 logger.info(CLASSIFIER_MICORSERVICE)
 
 router = APIRouter(
@@ -42,7 +43,7 @@ async def author_update_post(
     post_id: str,
     post_update: schemas.PostUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     #fetch post
     result = await db.execute(select(models.Post).where(models.Post.id == post_id))
@@ -116,7 +117,7 @@ async def start_cleanup_work(
     background_tasks: BackgroundTasks,
     start_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     # The router handles the HTTP specific stuff (404 errors, 403 errors)
     updated_post = await post_service.start_work(
@@ -138,7 +139,7 @@ async def submit_cleanup_proof(
     post_id: str,
     end_image_url: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     result = await db.execute(select(models.Post).where(models.Post.id == post_id))
     post = result.scalars().first()
@@ -190,7 +191,7 @@ async def approve_work(
     post_id: str,
     final_points: int = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     # Load volunteer immediately to update points
     query = (
@@ -237,7 +238,7 @@ async def author_create_request(
     post_data: schemas.PostCreate,
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
-    current_user: models.User = Depends(get_current_active_user)
+    current_user: User = Depends(get_current_user)
 ):
     new_post = models.Post(
         image_url=post_data.image_url,
