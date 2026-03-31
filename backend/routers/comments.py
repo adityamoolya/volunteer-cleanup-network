@@ -1,3 +1,9 @@
+"""
+    File: backend/routers/comments.py
+    Description: 
+        Endpoints for adding, retrieving, and managing comments on posts.
+"""
+
 # backend/routers/comments.py
 
 from fastapi import APIRouter, Depends, HTTPException, status

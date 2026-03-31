@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/dependencies.py
+    Description: 
+        Provides dependency injection functions for authentication and authorization across routes.
+"""
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession

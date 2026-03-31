@@ -1,4 +1,23 @@
-# backend/schemas.py
+"""
+    File: backend/schemas.py
+    Description: 
+        Defines the Pydantic models used for data validation, serialization, and 
+        deserialization. This acts as the bridge between the raw SQLAlchemy database 
+        models and the JSON payloads sent to/from the API endpoints.
+
+    Key Schemas:
+        - User Schemas: Differentiates between `UserPublic` (safe for leaderboards/feeds, 
+        strips emails/passwords) and `User` (full details for the `/me` endpoint).
+        - Post Schemas: Manages the data required to create (`PostCreate`), update 
+        (`PostUpdate`), and read (`Post`) cleanup missions. Includes fields for ML 
+        predictions, location tracking, and phase 1/2/3 image URLs.
+        - Interaction Schemas: Defines structures for Comments and Likes.
+
+    Security Note:
+        By utilizing `UserPublic` as nested models inside `Post` and `Comment`, the 
+        API guarantees that sensitive user data is never accidentally leaked to the 
+        public feed.
+"""
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List

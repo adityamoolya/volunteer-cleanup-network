@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/models.py
+    Description: 
+        Defines the database models related to authentication (Users, Admins, etc.).
+"""
+
 from sqlalchemy import Column, String, Boolean, DateTime, ForeignKey, Text, Integer
 from sqlalchemy.orm import relationship
 from database import Base
@@ -31,6 +37,7 @@ class User(Base):
     volunteer_tasks = relationship("Post", back_populates="volunteer", foreign_keys="Post.volunteer_id")
     comments = relationship("Comment", back_populates="author")
     likes = relationship("Like", back_populates="user")
+    admin_profile = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
 class RefreshToken(Base):
@@ -59,7 +66,18 @@ class OAuthAccount(Base):
 
     user             = relationship("User", back_populates="oauth_accounts")
 
+class Admin(Base):
+    __tablename__ = "admins"
 
+    # We use the user's ID as the primary key. 
+    # ondelete="CASCADE" ensures if the user is deleted, their admin rights are automatically cleaned up.
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    
+    # Tracks when they were given admin powers
+    granted_at = Column(DateTime, default=datetime.utcnow)
+
+    # Relationship back to the User model
+    user = relationship("User", back_populates="admin_profile")
 '''
 ## Why `String` for UUID instead of `UUID` type
 UUID type   Postgres only

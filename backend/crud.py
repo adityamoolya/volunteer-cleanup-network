@@ -1,4 +1,22 @@
-# backend/crud.py
+"""
+    File: backend/crud.py
+    Description: 
+        Contains the Create, Read, Update, and Delete (CRUD) utility functions for the 
+        application. This acts as the Data Access Layer, cleanly separating database 
+        query logic from the API routing logic.
+
+    Key Operations:
+        - User Lookups: Fetch users by ID, email, or username.
+        - Post Lookups: Retrieve individual cleanup posts.
+        - Comment Management: Creates and fetches comments linked to specific posts.
+
+    Technical Notes:
+        - Async Execution: Fully utilizes SQLAlchemy 2.0+ asynchronous sessions 
+        (`AsyncSession` and `await db.execute`).
+        - Relationship Loading: Uses `selectinload` extensively to eagerly load related 
+        data (like a Comment's Author). This is a critical pattern in async SQLAlchemy 
+        to prevent lazy-loading crashes when Pydantic attempts to serialize the data.
+"""
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

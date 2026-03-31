@@ -1,3 +1,9 @@
+"""
+    File: backend/routers/posts.py
+    Description: 
+        Endpoints for creating, reading, updating, and managing cleanup posts.
+"""
+
 # backend/routers/posts.py
 
 from urllib.parse import urljoin

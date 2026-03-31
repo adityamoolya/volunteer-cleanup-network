@@ -1,4 +1,24 @@
-# backend/models.py
+''' 
+    File: backend/models.py
+    Description: 
+        Defines the core relational database schema . This handles the primary user-generated 
+        content and the lifecycle of a cleanup mission.
+
+    Key Models:
+        - Post: Represents a cleanup request. Tracks the 3-phase lifecycle:
+            1. Author posts the request (Open).
+            2. Volunteer arrives and clocks in (In Progress).
+            3. Volunteer uploads proof and clocks out (Pending Approval/Completed).
+        - Comment: Represents user comments on a specific post.
+        - Like: Represents user likes on a specific post.
+        - TaskStatus (Enum): Restricts post status to predefined lifecycle states.
+
+    Relationships:
+        - Integrates tightly with `auth.models.User` to track authors, active 
+        volunteers, and the user who resolved the task.
+        - Uses cascade deletions (deleting a Post automatically deletes its Comments/Likes).
+
+'''
 import uuid
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Enum
 from sqlalchemy.orm import relationship

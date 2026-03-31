@@ -1,3 +1,9 @@
+"""
+    File: backend/routers/ml_service.py
+    Description: 
+        Provides integration with the machine learning service for image verification.
+"""
+
 import os
 import httpx
 import logging

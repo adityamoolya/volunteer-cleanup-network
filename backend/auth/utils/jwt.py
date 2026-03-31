@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/utils/jwt.py
+    Description: 
+        Module for auth/utils/jwt.py functionality.
+"""
+
 '''
 Access token    JWT, contains user_id, expires in 15 min
 Refresh token    random string, NOT a JWT

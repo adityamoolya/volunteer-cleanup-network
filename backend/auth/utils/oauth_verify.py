@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/utils/oauth_verify.py
+    Description: 
+        Module for auth/utils/oauth_verify.py functionality.
+"""
+
 from jose import jwt, JWTError
 from dotenv import load_dotenv
 import os

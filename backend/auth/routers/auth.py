@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/routers/auth.py
+    Description: 
+        Contains the main authentication endpoints for login, signup, and token refresh.
+"""
+
 '''
 Before   →  every refresh hit Postgres to validate token
 After    →  refresh checks Redis first (microseconds)

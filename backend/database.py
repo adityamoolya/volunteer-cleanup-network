@@ -1,3 +1,9 @@
+"""
+    File: backend/database.py
+    Description: 
+        Handles database session management and engine configuration for SQLAlchemy.
+"""
+
 # backend/database.py
 
 import os

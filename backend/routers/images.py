@@ -1,3 +1,9 @@
+"""
+    File: backend/routers/images.py
+    Description: 
+        Endpoints for uploading and managing images.
+"""
+
 # backend/routers/images.py
 
 import os

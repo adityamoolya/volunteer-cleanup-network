@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/schemas.py
+    Description: 
+        Pydantic models for authentication-related data validation and serialization.
+"""
+
 '''
 ## What Each Schema Does
 RegisterRequest     →  email + password coming in

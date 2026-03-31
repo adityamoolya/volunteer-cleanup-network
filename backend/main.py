@@ -1,3 +1,16 @@
+"""
+    File: backend/main.py
+    Description: 
+        The main entry point for the FastAPI application, containing app initialization and router inclusions.
+"""
+
+'''documentaion of each file is given at the top of each file
+    this is so that i dont loose track of what each file does
+    
+
+    main.py
+    entry point of app,logging modules imported here , mapped to routers
+'''
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -34,7 +47,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     lifespan=lifespan,
     title="Community Task APi",
-    version="6.9"
+    version="7.0"
 )
 
 # CORS configuration

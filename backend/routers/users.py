@@ -1,4 +1,28 @@
-# backend/routers/users.py
+"""
+    File: backend/routers/users.py
+    Description: 
+        Handles API endpoints related to user profiles, dashboard statistics, 
+        and leaderboards. This router manages how user data is retrieved and 
+        displayed across the application.
+
+    Key Endpoints:
+        - GET /me: Retrieves the fully detailed, private profile of the currently 
+        authenticated user (requires authentication).
+        - GET /profile/stats: Aggregates dashboard data including total tasks created, 
+        tasks solved, and total points. Returns the user's active requests and 
+        contributions (requires authentication).
+        - GET /leaderboard: Fetches the top 10 public user profiles ranked by points 
+        for the global leaderboard.
+
+    Security & Privacy Notes:
+        - Enforces data privacy by converting internal database models to the 
+        `schemas.UserPublic` schema before returning data to the client, ensuring 
+        emails, passwords, and other sensitive details are never exposed on public 
+        feeds or leaderboards.
+        - Routes interacting with a specific user's private data require active 
+        authentication via the `get_current_user` dependency.
+"""
+import uuid
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -96,3 +120,30 @@ async def get_leaderboard(db: AsyncSession = Depends(get_db)):
     query = select(User).order_by(desc(User.points)).limit(10)
     result = await db.execute(query)
     return result.scalars().all()
+
+
+@router.delete("/delete/{user_id}")
+async def delete_user(
+    user_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from fastapi import HTTPException
+    from auth.models import Admin
+    
+    # Check if the current user is deleting their own account or is an admin
+    if str(current_user.id) != str(user_id):
+        admin_entry = await db.get(Admin, current_user.id)
+        if not admin_entry:
+            raise HTTPException(status_code=403, detail="Not authorized to delete other users")
+
+    # Find the user to delete
+    user_to_delete = await db.get(User, str(user_id))
+    if not user_to_delete:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Delete the user
+    await db.delete(user_to_delete)
+    await db.commit()
+
+    return {"message": "User deleted successfully"}

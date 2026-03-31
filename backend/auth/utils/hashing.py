@@ -1,3 +1,9 @@
+"""
+    File: backend/auth/utils/hashing.py
+    Description: 
+        Module for auth/utils/hashing.py functionality.
+"""
+
 import bcrypt
 
 def hash_password(password: str) -> str:

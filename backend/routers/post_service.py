@@ -1,3 +1,9 @@
+"""
+    File: backend/routers/post_service.py
+    Description: 
+        Implements core business logic for processing cleanup posts.
+"""
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
