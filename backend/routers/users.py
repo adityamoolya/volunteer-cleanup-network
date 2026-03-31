@@ -131,11 +131,10 @@ async def delete_user(
     from fastapi import HTTPException
     from auth.models import Admin
     
-    # Check if the current user is deleting their own account or is an admin
+    # Check if the current user is deleting their own account 
     if str(current_user.id) != str(user_id):
-        admin_entry = await db.get(Admin, current_user.id)
-        if not admin_entry:
-            raise HTTPException(status_code=403, detail="Not authorized to delete other users")
+        
+        raise HTTPException(status_code=403, detail="Not authorized to delete other users")
 
     # Find the user to delete
     user_to_delete = await db.get(User, str(user_id))

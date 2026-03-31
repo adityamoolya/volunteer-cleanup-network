@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 from auth.models import User, RefreshToken, OAuthAccount
 from auth.routers import auth as auth_router, oauth as oauth_router
-from routers import posts, comments, images, users
+from routers import admins, posts, comments, images, users
 
 # --- Lifespan event for startup ---
 @asynccontextmanager
@@ -68,6 +68,7 @@ app.include_router(users.router)    # handles users data and stats
 app.include_router(posts.router)   # handles the posts router
 app.include_router(comments.router) # self explainatory ig
 app.include_router(images.router) #uploads images to cloudinary
+app.include_router(admins.router) #uploads images to cloudinary
 
 
 #checks if api is up or not

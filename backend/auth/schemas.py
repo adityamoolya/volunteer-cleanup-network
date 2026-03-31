@@ -60,7 +60,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: str
-    is_banned: bool
+    # is_banned: bool
     points: int
     created_at: datetime
 

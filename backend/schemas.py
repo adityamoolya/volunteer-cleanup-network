@@ -111,3 +111,18 @@ class Post(PostBase):
 
     class Config:
             from_attributes = True
+
+class BanRequest(BaseModel):
+    ban: bool
+    reason: Optional[str] = None   # ignored on unban, stored for context on ban
+
+
+class UserAdminView(BaseModel):
+    id: str
+    username: str
+    email: str
+    points: int
+    is_banned: bool
+
+    class Config:
+        from_attributes = True

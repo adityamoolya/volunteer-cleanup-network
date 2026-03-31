@@ -22,21 +22,22 @@ class User(Base):
     email          = Column(String, unique=True, nullable=False, index=True)
     username       = Column(String(50), unique=True, nullable=False, index=True)
     password_hash  = Column(String, nullable=True)    # nullable for OAuth users
-    is_banned      = Column(Boolean, default=False)
+    # is_banned      = Column(Boolean, default=False)
+    is_banned = Column(Boolean, default=False, nullable=False)
     created_at     = Column(DateTime, default=datetime.utcnow)
 
     points         = Column(Integer, default=0)
 
     # --- Auth relationships ---
-    refresh_tokens = relationship("RefreshToken", back_populates="user")
-    oauth_accounts = relationship("OAuthAccount", back_populates="user")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    oauth_accounts = relationship("OAuthAccount", back_populates="user", cascade="all, delete-orphan")
 
     # --- App relationships ---
-    posts = relationship("Post", back_populates="author", foreign_keys="Post.author_id")
+    posts = relationship("Post", back_populates="author", foreign_keys="Post.author_id", cascade="all, delete-orphan")
     contribution_tasks = relationship("Post", back_populates="resolved_by", foreign_keys="Post.resolved_by_id")
     volunteer_tasks = relationship("Post", back_populates="volunteer", foreign_keys="Post.volunteer_id")
-    comments = relationship("Comment", back_populates="author")
-    likes = relationship("Like", back_populates="user")
+    comments = relationship("Comment", back_populates="author", cascade="all, delete-orphan")
+    likes = relationship("Like", back_populates="user", cascade="all, delete-orphan")
     admin_profile = relationship("Admin", back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 
@@ -69,15 +70,23 @@ class OAuthAccount(Base):
 class Admin(Base):
     __tablename__ = "admins"
 
-    # We use the user's ID as the primary key. 
-    # ondelete="CASCADE" ensures if the user is deleted, their admin rights are automatically cleaned up.
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
-    
-    # Tracks when they were given admin powers
-    granted_at = Column(DateTime, default=datetime.utcnow)
+    # Unique identifier for each admin record (separate from user_id).
+    # Using UUID allows flexibility if the schema evolves beyond 1:1 mapping.
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
 
-    # Relationship back to the User model
-    user = relationship("User", back_populates="admin_profile")
+    # Foreign key reference to the users table.
+    # 'unique=True' enforces that each user can only have one admin entry.
+    # 'nullable=False' ensures every admin row is tied to a valid user.
+    user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
+
+    # Denormalized field storing username at the time of promotion.
+    # Useful for quick access without needing a JOIN, but may become stale
+    # if the username changes in the users table.
+    username = Column(String(150), nullable=False)
+
+    # ORM relationship to the User model.
+    # Enables access like: admin.user → corresponding User object
+    user = relationship("User")
 '''
 ## Why `String` for UUID instead of `UUID` type
 UUID type   Postgres only
