@@ -4,6 +4,7 @@
         Implements core business logic for processing cleanup posts.
 """
 
+from auth.models import User
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from sqlalchemy.orm import selectinload
@@ -26,8 +27,10 @@ def post_loader():
 
 async def get_feed(db: AsyncSession, skip: int = 0, limit: int = 20):
     query = (
-        post_loader()
+         post_loader()
+        .join(User, models.Post.author_id == User.id)  # join to check ban status
         .where(models.Post.status != models.TaskStatus.COMPLETED)
+        .where(User.is_banned == False)                # exclude banned authors
         .order_by(desc(models.Post.created_at))
         .offset(skip)
         .limit(limit)

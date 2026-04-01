@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
 ml_url = urljoin(CLASSIFIER_MICORSERVICE, "/predict_with_urls") if CLASSIFIER_MICORSERVICE else None
-logger.info(CLASSIFIER_MICORSERVICE)
+logger.info("ML MICROSERVICE RUNNING AT "+CLASSIFIER_MICORSERVICE)
 
 router = APIRouter(
     prefix="/posts",
@@ -277,3 +277,24 @@ async def author_create_request(
     )
     result = await db.execute(query)
     return result.scalars().first()
+
+
+@router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_post(
+    post_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(models.Post).where(models.Post.id == post_id))
+    post = result.scalars().first()
+    
+    if not post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Post not found")
+        
+    if post.author_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this post")
+        
+    await db.delete(post)
+    await db.commit()
+    
+    return None

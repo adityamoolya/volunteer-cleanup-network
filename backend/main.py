@@ -11,6 +11,7 @@
     main.py
     entry point of app,logging modules imported here , mapped to routers
 '''
+    #TODO: add a ntoificaiton service via firebase,need to figure that out
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
@@ -37,12 +38,13 @@ from routers import admins, posts, comments, images, users
 # --- Lifespan event for startup ---
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logging.info("Application startup...")
+    # logging.info("Application startup...")
     async with engine.begin() as conn: #creates new databases table if not already there
         await conn.run_sync(Base.metadata.create_all)
     logging.info("Database tables created/verified.")
     yield
-    logging.info("Application shutdown...")
+    
+    # logging.info("Application shutdown...")
 
 app = FastAPI(
     lifespan=lifespan,

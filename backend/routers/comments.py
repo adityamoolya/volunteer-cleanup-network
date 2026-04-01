@@ -10,8 +10,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
 
-import schemas, crud
+import schemas, crud, models
 from database import get_db
+from sqlalchemy import select
 from auth.dependencies import get_current_user
 from auth.models import User
 
@@ -48,3 +49,25 @@ async def read_comments(
     db: AsyncSession = Depends(get_db)
 ):
     return await crud.get_comments_by_post(db, post_id=post_id)
+
+
+# --- Delete Comment ---
+@router.delete("/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_comment(
+    comment_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    result = await db.execute(select(models.Comment).where(models.Comment.id == comment_id))
+    comment = result.scalars().first()
+    
+    if not comment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Comment not found")
+        
+    if comment.author_id != current_user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to delete this comment")
+        
+    await db.delete(comment)
+    await db.commit()
+    
+    return None
