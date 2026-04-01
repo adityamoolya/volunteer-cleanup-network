@@ -4,3 +4,4 @@ env12/
 **.db
 **/envirormentEl.session.sql
 **/.vscode/
+**/envirorment-el-firebase-adminsdk-fbsvc-9599c2dc71.json

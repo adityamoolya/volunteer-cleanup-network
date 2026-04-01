@@ -33,6 +33,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    fcm_token: Optional[str] = None
 
 
 class RefreshRequest(BaseModel):

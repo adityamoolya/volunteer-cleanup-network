@@ -22,6 +22,7 @@ class User(Base):
     email          = Column(String, unique=True, nullable=False, index=True)
     username       = Column(String(50), unique=True, nullable=False, index=True)
     password_hash  = Column(String, nullable=True)    # nullable for OAuth users
+    fcm_token      = Column(String, nullable=True)
     # is_banned      = Column(Boolean, default=False)
     is_banned = Column(Boolean, default=False, nullable=False)
     created_at     = Column(DateTime, default=datetime.utcnow)

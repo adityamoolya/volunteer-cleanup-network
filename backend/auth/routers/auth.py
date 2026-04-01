@@ -73,6 +73,9 @@ async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
     refresh_token = create_refresh_token()
     token_hash    = hash_refresh_token(refresh_token)
 
+    if payload.fcm_token:
+        user.fcm_token = payload.fcm_token
+
     db.add(RefreshToken(
         user_id    = user.id,
         token_hash = token_hash,
