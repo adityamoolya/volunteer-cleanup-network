@@ -1,15 +1,11 @@
-"""
+'''
     File: backend/main.py
     Description: 
-        The main entry point for the FastAPI application, containing app initialization and router inclusions.
-"""
-
-'''documentaion of each file is given at the top of each file
-    this is so that i dont loose track of what each file does
-    
-
-    main.py
-    entry point of app,logging modules imported here , mapped to routers
+        The main entry point for the FastAPI application.
+        This file handles the initialization of the FastAPI app, configures CORS middleware for mobile app access, 
+        sets up the database lifespan events (automatically creating tables on startup), 
+        and registers all the application routers (auth, users, posts, comments, admins, rewards, images).
+        It also configures the application-level logger.
 '''
     #TODO: add a ntoificaiton service via firebase,need to figure that out
 from fastapi import FastAPI
@@ -33,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 from auth.models import User, RefreshToken, OAuthAccount
 from auth.routers import auth as auth_router, oauth as oauth_router
-from routers import admins, posts, comments, images, users
+from routers import admins, posts, comments, images, users, rewards
 
 # --- Lifespan event for startup ---
 @asynccontextmanager
@@ -71,7 +67,7 @@ app.include_router(posts.router)   # handles the posts router
 app.include_router(comments.router) # self explainatory ig
 app.include_router(images.router) #uploads images to cloudinary
 app.include_router(admins.router) #uploads images to cloudinary
-
+app.include_router(rewards.router)
 
 #checks if api is up or not
 @app.get("/", tags=["Health Check"])

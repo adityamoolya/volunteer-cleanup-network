@@ -1,4 +1,4 @@
-"""
+'''
     File: backend/crud.py
     Description: 
         Contains the Create, Read, Update, and Delete (CRUD) utility functions for the 
@@ -16,7 +16,7 @@
         - Relationship Loading: Uses `selectinload` extensively to eagerly load related 
         data (like a Comment's Author). This is a critical pattern in async SQLAlchemy 
         to prevent lazy-loading crashes when Pydantic attempts to serialize the data.
-"""
+'''
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select

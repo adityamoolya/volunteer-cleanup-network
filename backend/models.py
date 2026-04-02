@@ -97,3 +97,32 @@ class Like(Base):
     post_id = Column(String(36), ForeignKey("posts.id"))
     user = relationship("User", back_populates="likes")
     post = relationship("Post", back_populates="likes")
+
+class RedemptionStatus(str, enum.Enum):
+    PENDING = "pending"
+    APPROVED = "approved"
+    REJECTED = "rejected"
+
+class Reward(Base):
+    __tablename__ = "rewards"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    name = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    cost_in_points = Column(Integer, nullable=False)
+    stock = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+class RedemptionRequest(Base):
+    __tablename__ = "redemption_requests"
+    
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
+    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
+    reward_id = Column(String(36), ForeignKey("rewards.id"), nullable=False)
+    status = Column(Enum(RedemptionStatus), default=RedemptionStatus.PENDING)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    user = relationship("User", backref="redemption_requests")
+    reward = relationship("Reward", backref="requests")
+

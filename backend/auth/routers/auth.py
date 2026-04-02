@@ -35,7 +35,7 @@ router = APIRouter()
 
 @router.post("/register", response_model=MessageResponse, status_code=201)
 async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db)):
-
+    payload.email = payload.email.lower()
     result = await db.execute(select(User).where(User.email == payload.email))
     existing = result.scalar_one_or_none()
     if existing:
@@ -56,7 +56,7 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
 
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: LoginRequest, db: AsyncSession = Depends(get_db)):
-
+    payload.email = payload.email.lower()
     result = await db.execute(select(User).where(User.email == payload.email))
     user = result.scalar_one_or_none()
 

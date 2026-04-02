@@ -1,8 +1,9 @@
-"""
+'''
     File: backend/routers/posts.py
     Description: 
         Endpoints for creating, reading, updating, and managing cleanup posts.
-"""
+        This file defines the HTTP interface for the core gamification loop.
+'''
 
 # backend/routers/posts.py
 
@@ -23,6 +24,7 @@ import os
 from datetime import datetime, timezone
 import logging
 from . import post_service, ml_service
+from routers.notification_service import notify_user_async
 logger = logging.getLogger(__name__)
 
 CLASSIFIER_MICORSERVICE = os.getenv("CLASSIFIER_MICORSERVICE") 
@@ -133,6 +135,9 @@ async def start_cleanup_work(
     if not updated_post:
         raise HTTPException(status_code=400, detail="Post not found or not open")
         
+    if updated_post.author:
+        await notify_user_async(db, updated_post.author, "Volunteer Assigned!", "A volunteer is on their way to clean up your reported spot!")
+        
     # Trigger background task from the service layer
     background_tasks.add_task(ml_service.verify_volunteer_post_ml, post_id, start_image_url)
     
@@ -188,7 +193,12 @@ async def submit_cleanup_proof(
         .where(models.Post.id == post_id)
     )
     result = await db.execute(query)
-    return result.scalars().first()
+    updated_post = result.scalars().first()
+    
+    if updated_post and updated_post.author:
+        await notify_user_async(db, updated_post.author, "Job Done!", "A volunteer has submitted proof for your post. Review and approve to release the points.")
+        
+    return updated_post
 
 
 # APPROVE & PAY (Resolution) 
@@ -236,7 +246,12 @@ async def approve_work(
         .where(models.Post.id == post_id)
     )
     result = await db.execute(query)
-    return result.scalars().first()
+    updated_post = result.scalars().first()
+    
+    if updated_post and updated_post.volunteer:
+        await notify_user_async(db, updated_post.volunteer, "Work Approved!", f"Great job! Your cleanup was approved and you earned {final_points} points.")
+        
+    return updated_post
 
 
 @router.post("/", response_model=schemas.Post, status_code=status.HTTP_201_CREATED)
@@ -298,3 +313,53 @@ async def delete_post(
     await db.commit()
     
     return None
+
+@router.post("/{post_id}/cancel", response_model=schemas.Post)
+async def cancel_post(
+    post_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    query = (
+        select(models.Post)
+        .options(
+            selectinload(models.Post.author),
+            selectinload(models.Post.likes),
+            selectinload(models.Post.comments).selectinload(models.Comment.author),
+            selectinload(models.Post.resolved_by),
+            selectinload(models.Post.volunteer)
+        )
+        .where(models.Post.id == post_id)
+    )
+    result = await db.execute(query)
+    post = result.scalars().first()
+
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Author logic: Cancel an open post entirely
+    if post.author_id == current_user.id:
+        if post.status != models.TaskStatus.OPEN:
+            raise HTTPException(status_code=400, detail="Author can only cancel OPEN posts")
+        post.status = models.TaskStatus.CANCELLED
+        await db.commit()
+        return post
+
+    # Volunteer logic: Drop a claimed post
+    if post.volunteer_id == current_user.id:
+        if post.status != models.TaskStatus.IN_PROGRESS:
+            raise HTTPException(status_code=400, detail="Volunteer can only drop IN_PROGRESS posts")
+        
+        post.status = models.TaskStatus.OPEN
+        post.volunteer_id = None
+        post.start_image_url = None
+        post.volunteer_start_timestamp = None
+        await db.commit()
+        
+        if post.author:
+            await notify_user_async(db, post.author, "Volunteer Dropped", "A volunteer has cancelled their claim on your post. It is now open for others.")
+            
+        return post
+
+    raise HTTPException(status_code=403, detail="Not authorized to cancel this post")
+

@@ -1,8 +1,8 @@
-"""
+'''
     File: backend/routers/comments.py
     Description: 
         Endpoints for adding, retrieving, and managing comments on posts.
-"""
+'''
 
 # backend/routers/comments.py
 
@@ -35,12 +35,31 @@ async def create_comment(
         raise HTTPException(status_code=404, detail="Post not found")
 
     # 2. Create comment (FIXED ARGUMENTS)
-    return await crud.create_comment(
+    created_comment = await crud.create_comment(
         db=db, 
         comment=comment,           # Matches crud.py definition
         user_id=current_user.id,   # Matches crud.py definition (not author_id)
         post_id=post_id
     )
+
+    # 3. Notify the post author
+    from sqlalchemy.orm import selectinload
+    from routers.notification_service import notify_user_async
+    
+    query = select(models.Post).options(selectinload(models.Post.author)).where(models.Post.id == post_id)
+    result = await db.execute(query)
+    post_with_author = result.scalars().first()
+    
+    # Don't send a notification if the author commented on their own post
+    if post_with_author and post_with_author.author and post_with_author.author.id != current_user.id:
+        await notify_user_async(
+            db, 
+            post_with_author.author, 
+            "New Comment", 
+            f"{current_user.username} commented on your cleanup post."
+        )
+
+    return created_comment
 
 # --- Get Comments for a Post ---
 @router.get("/", response_model=List[schemas.Comment])

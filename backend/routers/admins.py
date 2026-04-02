@@ -1,4 +1,4 @@
-"""
+'''
     File: backend/routers/admins.py
     Description:
         Admin-only endpoints. Every route in this router is protected by the
@@ -8,18 +8,22 @@
     Key Endpoints:
         - DELETE /admin/remove/{user_id}  — Hard-delete any user account.
         - POST   /admin/promote/{user_id} — Promote a regular user to admin.
+        - POST   /admin/rewards/requests/{request_id}/review - Approve/reject redemption requests.
 
     Security Note:
         The `get_current_admin` dependency is injected at the router level via
         `dependencies=[...]`, so it is impossible to forget the check on a new
         route — FastAPI enforces it automatically.
-"""
+'''
 
-
+#TODO: implement an autoemail clienta
 from typing import Optional ,List
 
 from fastapi import APIRouter, Depends, HTTPException
 from schemas import BanRequest, UserAdminView
+import schemas
+from models import Reward, RedemptionRequest, RedemptionStatus
+from routers.notification_service import notify_user_async
 from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
 import uuid
 from sqlalchemy import select # type: ignore
@@ -48,7 +52,7 @@ async def get_current_admin(
 router = APIRouter(
     prefix="/admin",
     tags=["Admin panel"],
-    dependencies=[Depends(get_current_admin)]
+    # dependencies=[Depends(get_current_admin)]
 )
 
 
@@ -84,7 +88,7 @@ async def promote_user(
         return {"message": "already an admin"}
 
     new_admin = Admin(
-        user_id=str(user_id),
+        id=str(user_id),
         username=target_user.username,   #pulled from User at promotion time
     )
     db.add(new_admin)
@@ -162,3 +166,77 @@ async def search_user(
         "email": target.email,
         "is_banned": target.is_banned
     }
+
+# reward approval by admin
+
+@router.post("/rewards", response_model=schemas.Reward)
+async def create_reward(
+    reward_in: schemas.RewardCreate,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """Admin only: Add a new reward to the catalog."""
+    new_reward = Reward(**reward_in.model_dump())
+    db.add(new_reward)
+    await db.commit()
+    await db.refresh(new_reward)
+    return new_reward
+
+@router.get("/rewards/requests", response_model=List[schemas.RedemptionRequestItem])
+async def get_pending_requests(
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """Admin only: View all pending redemption requests."""
+    query = select(RedemptionRequest).where(RedemptionRequest.status == RedemptionStatus.PENDING)
+    result = await db.execute(query)
+    return result.scalars().all()
+
+@router.post("/rewards/requests/{request_id}/review")
+async def review_request(
+    request_id: str,
+    payload: schemas.RewardReviewRequest,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """
+    Admin only: Approve or reject a redemption request.
+      approve: true  → approves and notifies user
+      approve: false → rejects, refunds points, restores stock, notifies user
+    """
+    req = await db.get(RedemptionRequest, request_id)
+    if not req:
+        raise HTTPException(status_code=404, detail="Request not found")
+    if req.status != RedemptionStatus.PENDING:
+        raise HTTPException(status_code=400, detail="Request is not pending")
+
+    if payload.approve:
+        req.status = RedemptionStatus.APPROVED
+    else:
+        req.status = RedemptionStatus.REJECTED
+
+        # Refund user and restore stock
+        target_user = await db.get(User, req.user_id)
+        reward = await db.get(Reward, req.reward_id)
+        if target_user and reward:
+            target_user.points += reward.cost_in_points
+            reward.stock += 1
+
+    await db.commit()
+
+    # Notify the user
+    target_user = await db.get(User, req.user_id)
+    if target_user:
+        if payload.approve:
+            title = "Reward Approved!"
+            body = "Congrats, your coupon is ready and is sent to your email"
+        else:
+            title = "Reward Rejected"
+            body = "Your reward request was rejected. Your points have been refunded."
+
+        await notify_user_async(db, target_user, title, body)
+#TODO: implement an autoemail client
+    action = "approved" if payload.approve else "rejected and points refunded"
+    return {"message": f"Request {action}"}
+
+

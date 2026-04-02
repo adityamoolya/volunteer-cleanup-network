@@ -1,4 +1,4 @@
-"""
+'''
     File: backend/schemas.py
     Description: 
         Defines the Pydantic models used for data validation, serialization, and 
@@ -12,12 +12,13 @@
         (`PostUpdate`), and read (`Post`) cleanup missions. Includes fields for ML 
         predictions, location tracking, and phase 1/2/3 image URLs.
         - Interaction Schemas: Defines structures for Comments and Likes.
+        - Admin & Reward Schemas: Manages admin operations, user ban requests, and the gamified rewards catalog.
 
     Security Note:
         By utilizing `UserPublic` as nested models inside `Post` and `Comment`, the 
         API guarantees that sensitive user data is never accidentally leaked to the 
         public feed.
-"""
+'''
 
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
@@ -126,3 +127,37 @@ class UserAdminView(BaseModel):
 
     class Config:
         from_attributes = True
+
+# --- Reward Schemas ---
+class RewardBase(BaseModel):
+    name: str
+    description: Optional[str] = None
+    cost_in_points: int
+    stock: int
+
+class RewardCreate(RewardBase):
+    pass
+
+class Reward(RewardBase):
+    id: str
+    created_at: datetime
+    class Config:
+        from_attributes = True
+
+# --- Redemption Schemas ---
+class RedemptionRequestBase(BaseModel):
+    reward_id: str
+
+class RedemptionRequestItem(BaseModel):
+    id: str
+    user_id: str
+    reward_id: str
+    status: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+    reward: Optional[Reward] = None
+    class Config:
+        from_attributes = True
+
+class RewardReviewRequest(BaseModel):
+    approve: bool

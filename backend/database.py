@@ -1,8 +1,11 @@
-"""
+'''
     File: backend/database.py
     Description: 
         Handles database session management and engine configuration for SQLAlchemy.
-"""
+        It manages connection strings, handles differences between SQLite (for local dev) 
+        and PostgreSQL (for production), configures async database drivers (asyncpg/aiosqlite),
+        and applies necessary SSL configurations for secure remote database connections.
+'''
 
 # backend/database.py
 

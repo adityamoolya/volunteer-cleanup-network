@@ -1,4 +1,4 @@
-"""
+'''
     File: backend/routers/users.py
     Description: 
         Handles API endpoints related to user profiles, dashboard statistics, 
@@ -21,7 +21,7 @@
         feeds or leaderboards.
         - Routes interacting with a specific user's private data require active 
         authentication via the `get_current_user` dependency.
-"""
+'''
 import uuid
 
 from fastapi import APIRouter, Depends

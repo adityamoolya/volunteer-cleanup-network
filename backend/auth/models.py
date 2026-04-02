@@ -71,23 +71,18 @@ class OAuthAccount(Base):
 class Admin(Base):
     __tablename__ = "admins"
 
-    # Unique identifier for each admin record (separate from user_id).
-    # Using UUID allows flexibility if the schema evolves beyond 1:1 mapping.
-    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-
-    # Foreign key reference to the users table.
-    # 'unique=True' enforces that each user can only have one admin entry.
-    # 'nullable=False' ensures every admin row is tied to a valid user.
-    user_id = Column(String(36), ForeignKey("users.id"), unique=True, nullable=False)
+    # The id is derived directly from users.id
+    id = Column(String(36), ForeignKey("users.id"), primary_key=True)
 
     # Denormalized field storing username at the time of promotion.
-    # Useful for quick access without needing a JOIN, but may become stale
-    # if the username changes in the users table.
     username = Column(String(150), nullable=False)
+    
+    # Records when admin privilege was given
+    promoted_at = Column(DateTime, default=datetime.utcnow)
 
     # ORM relationship to the User model.
-    # Enables access like: admin.user → corresponding User object
-    user = relationship("User")
+    user = relationship("User", back_populates="admin_profile")
+
 '''
 ## Why `String` for UUID instead of `UUID` type
 UUID type   Postgres only

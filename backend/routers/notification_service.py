@@ -1,5 +1,5 @@
-"""
-    File: backend/notification_service.py
+'''
+    File: backend/routers/notification_service.py
     Description:
         Initializes Firebase Admin SDK and exposes a simple send_notification()
         helper. Import and call it from anywhere in the app — works like a log function.
@@ -7,7 +7,7 @@
     Usage:
         from notification_service import send_notification
         send_notification(token="device_fcm_token", title="Hello", body="World")
-"""
+'''
 
 import os
 import logging
@@ -17,9 +17,11 @@ from firebase_admin import credentials, messaging
 logger = logging.getLogger(__name__)
 
 # Init (runs once on first import) ---
-_BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-_CRED_PATH = os.path.join(_BASE_DIR, "envirorment-el-firebase-adminsdk-fbsvc-9599c2dc71.json")
-
+_BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_CRED_PATH = os.path.join(
+    _BASE_DIR,
+    "envirorment-el-firebase-adminsdk-fbsvc-9599c2dc71.json"
+)
 if not firebase_admin._apps:
     cred = credentials.Certificate(_CRED_PATH)
     firebase_admin.initialize_app(cred)
@@ -61,7 +63,34 @@ def send_notification(token: str, title: str, body: str, data: dict = None) -> b
         return True
     except messaging.UnregisteredError:
         logger.warning(f"[FCM] Token unregistered (stale) — consider removing from DB: {token[:20]}...")
-        return False
+        return "unregistered"
     except Exception as e:
         logger.error(f"[FCM] Failed to send notification: {e}")
         return False
+
+import asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+async def notify_user_async(db: AsyncSession, user, title: str, body: str, data: dict = None) -> bool:
+    """Async wrapper that cleans up stale tokens."""
+    if not user or not getattr(user, "fcm_token", None):
+        return False
+
+    token = user.fcm_token
+    loop = asyncio.get_running_loop()
+    
+    result = await loop.run_in_executor(
+        None, 
+        lambda: send_notification(token, title, body, data)
+    )
+    
+    if result == "unregistered":
+        user.fcm_token = None
+        db.add(user)
+        try:
+            await db.commit()
+        except:
+            await db.rollback()
+        return False
+        
+    return bool(result)

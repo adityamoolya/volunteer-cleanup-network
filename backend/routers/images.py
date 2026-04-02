@@ -1,8 +1,8 @@
-"""
+'''
     File: backend/routers/images.py
     Description: 
-        Endpoints for uploading and managing images.
-"""
+        Endpoints for uploading and managing images to Cloudinary, along with mock testing options.
+'''
 
 # backend/routers/images.py
 
