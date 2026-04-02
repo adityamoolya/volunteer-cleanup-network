@@ -27,6 +27,7 @@ from routers.notification_service import notify_user_async
 from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
 import uuid
 from sqlalchemy import select # type: ignore
+from sqlalchemy.orm import selectinload
 
 from auth.models import User, Admin
 from auth.dependencies import get_db, get_current_user
@@ -52,7 +53,7 @@ async def get_current_admin(
 router = APIRouter(
     prefix="/admin",
     tags=["Admin panel"],
-    # dependencies=[Depends(get_current_admin)]
+    dependencies=[Depends(get_current_admin)]
 )
 
 
@@ -182,13 +183,42 @@ async def create_reward(
     await db.refresh(new_reward)
     return new_reward
 
+from pydantic import BaseModel
+
+class RestockPayload(BaseModel):
+    amount: int
+
+@router.post("/rewards/{reward_id}/restock", response_model=schemas.Reward)
+async def restock_reward(
+    reward_id: str,
+    payload: RestockPayload,
+    db: AsyncSession = Depends(get_db),
+    current_admin: User = Depends(get_current_admin)
+):
+    """Admin only: Add more stock (coupons) to an existing reward."""
+    reward = await db.get(Reward, reward_id)
+    if not reward:
+        raise HTTPException(status_code=404, detail="Reward not found")
+    
+    if payload.amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be strongly positive")
+        
+    reward.stock += payload.amount
+    await db.commit()
+    await db.refresh(reward)
+    return reward
+
 @router.get("/rewards/requests", response_model=List[schemas.RedemptionRequestItem])
 async def get_pending_requests(
     db: AsyncSession = Depends(get_db),
     current_admin: User = Depends(get_current_admin)
 ):
     """Admin only: View all pending redemption requests."""
-    query = select(RedemptionRequest).where(RedemptionRequest.status == RedemptionStatus.PENDING)
+    query = (
+        select(RedemptionRequest)
+        .options(selectinload(RedemptionRequest.reward))
+        .where(RedemptionRequest.status == RedemptionStatus.PENDING)
+    )
     result = await db.execute(query)
     return result.scalars().all()
 

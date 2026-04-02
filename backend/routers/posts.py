@@ -220,8 +220,12 @@ async def approve_work(
     
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    if post.author_id != current_user.id:
-         raise HTTPException(status_code=403, detail="Only author can approve")
+        
+    from auth.models import Admin
+    is_admin = await db.get(Admin, current_user.id) is not None
+    
+    if post.author_id != current_user.id and not is_admin:
+         raise HTTPException(status_code=403, detail="Only author or an admin can approve")
     if post.status != models.TaskStatus.PENDING_APPROVAL:
          raise HTTPException(status_code=400, detail="Task is not pending approval")
          

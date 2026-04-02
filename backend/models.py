@@ -21,7 +21,7 @@
 '''
 import uuid
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Enum
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from database import Base
 from auth.models import User  # User now lives in auth module
@@ -117,12 +117,12 @@ class RedemptionRequest(Base):
     __tablename__ = "redemption_requests"
     
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
-    user_id = Column(String(36), ForeignKey("users.id"), nullable=False)
-    reward_id = Column(String(36), ForeignKey("rewards.id"), nullable=False)
+    user_id = Column(String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    reward_id = Column(String(36), ForeignKey("rewards.id", ondelete="CASCADE"), nullable=False)
     status = Column(Enum(RedemptionStatus), default=RedemptionStatus.PENDING)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    user = relationship("User", backref="redemption_requests")
-    reward = relationship("Reward", backref="requests")
+    user = relationship("User", backref=backref("redemption_requests", cascade="all, delete-orphan"))
+    reward = relationship("Reward", backref=backref("requests", cascade="all, delete-orphan"))
 

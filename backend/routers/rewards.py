@@ -7,6 +7,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import List
 
 from database import get_db
@@ -67,6 +68,10 @@ async def request_reward(
     await db.refresh(redemption_req)
     
     # Reload with relationships
-    query = select(RedemptionRequest).where(RedemptionRequest.id == redemption_req.id)
+    query = (
+        select(RedemptionRequest)
+        .options(selectinload(RedemptionRequest.reward))
+        .where(RedemptionRequest.id == redemption_req.id)
+    )
     result = await db.execute(query)
     return result.scalars().first()

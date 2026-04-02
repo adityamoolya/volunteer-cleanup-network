@@ -13,6 +13,10 @@ import os
 import logging
 import firebase_admin
 from firebase_admin import credentials, messaging
+from dotenv import load_dotenv
+
+load_dotenv()
+USE_MOCK_NOTIFICATION = os.getenv("USE_MOCK_NOTIFICATION")
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +51,11 @@ def send_notification(token: str, title: str, body: str, data: dict = None) -> b
         send_notification(user.fcm_token, "Task Accepted!", "A volunteer is on the way.")
         send_notification(user.fcm_token, "Points Earned", "+50 pts", data={"type": "reward"})
     """
+
+
+    if USE_MOCK_NOTIFICATION: 
+        logger.warning("USING MOCK NOTIFICATION REQUEST")
+        return True
     if not token:
         logger.warning("[FCM] send_notification called with empty token — skipped.")
         return False
