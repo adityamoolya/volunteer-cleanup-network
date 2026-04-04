@@ -45,7 +45,8 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     lifespan=lifespan,
     title="Community Task APi",
-    version="7.0"
+    version="7.0",
+    redoc_url=None
 )
 
 # CORS configuration
