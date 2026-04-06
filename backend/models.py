@@ -20,7 +20,7 @@
 
 '''
 import uuid
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Enum
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, Text, Float, Enum, JSON
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from database import Base
@@ -46,6 +46,7 @@ class Post(Base):
     longitude = Column(Float, nullable=True)
     
     predicted_class = Column(String(50), nullable=True)
+    all_probabilities = Column(JSON, nullable=True)  # {"Battery": "0.12%", "Plastic": "87.32%", ...}
     points = Column(Integer, default=0)
     status = Column(Enum(TaskStatus), default=TaskStatus.OPEN)
     

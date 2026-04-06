@@ -1,10 +1,13 @@
-tensorflow
-#tensorflow-cpu
-Pillow
+# Export step only (run once, then uninstall torch)
+# torch
+# transformers
+# onnxruntime
+ 
+# Runtime deps (lean)
+onnxruntime
 fastapi
 uvicorn
+pillow
+httpx
 numpy
 python-multipart
-httpx
-Pillow
-

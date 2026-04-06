@@ -27,7 +27,7 @@ from routers.notification_service import notify_user_async
 from sqlalchemy.ext.asyncio import AsyncSession # type: ignore
 import uuid
 from sqlalchemy import select # type: ignore
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload #type: ignore
 
 from auth.models import User, Admin
 from auth.dependencies import get_db, get_current_user

@@ -21,7 +21,7 @@
 '''
 
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Optional, List, Dict
 from datetime import datetime
 from models import TaskStatus
 
@@ -77,6 +77,7 @@ class PostBase(BaseModel):
 
 class PostCreate(PostBase):
     predicted_class: Optional[str] = "Processing..."
+    all_probabilities: Optional[Dict[str, str]] = None
     points: Optional[int] = 0
 
 
@@ -94,6 +95,7 @@ class Post(PostBase):
     author_id: str
     resolved_by_id: Optional[str] = None
     predicted_class: Optional[str] = None 
+    all_probabilities: Optional[Dict[str, str]] = None
     points: int
 
     volunteer_id: Optional[str] = None

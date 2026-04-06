@@ -1,114 +1,106 @@
-import os
-from io import BytesIO
-import uvicorn
-import numpy as np
-import tensorflow as tf
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from fastapi.responses import JSONResponse
-from PIL import Image
+"""
+Lean trash classifier — ONNX Runtime only, no torch.
+
+Prerequisites (in same directory):
+    trash_classifier.onnx
+    labels.json
+
+Both are produced by export_onnx.py
+"""
+
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from contextlib import asynccontextmanager
 from pydantic import BaseModel
+from PIL import Image
+from io import BytesIO
 import httpx
-app = FastAPI(title="Waste Classifier API")
+import numpy as np
+import onnxruntime as ort
+import json
 
-# load model 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "waste_classifier_model.h5")
+# ── Load artifacts at startup ──────────────────────────────────────────────
+ONNX_PATH   = "trash_classifier.onnx"
+LABELS_PATH = "labels.json"
 
-# model = load_model(MODEL_PATH)
-model = tf.keras.models.load_model(MODEL_PATH)
-CLASS_NAMES = ['cardboard', 'glass', 'metal', 'paper', 'plastic', 'trash']
-DUSTBIN_MAP = {
-    'cardboard': ' Blue Dustbin (Dry Waste / Recyclable)',
-    'glass': ' Blue Dustbin (Dry Waste / Recyclable)',
-    'metal': ' Blue Dustbin (Dry Waste / Recyclable)',
-    'paper': ' Blue Dustbin (Dry Waste / Recyclable)',
-    'plastic': ' Blue Dustbin (Dry Waste / Recyclable)',
-    'trash': ' Black Dustbin (General / Non-Recyclable Waste)'
-}
+session = None
+labels  = None
+IMG_SIZE = 224  # SigLIP2-base-patch16-224
 
-POINTS_DIC = {
-    'cardboard': 5,
-    'paper': 8,
-    'glass': 15,
-    'metal': 25,
-    'plastic': 30,
-    'trash': 10
-}
-class PredictRequest(BaseModel):
-    image_url: str
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global session, labels
+    print("Loading ONNX model...")
+    session = ort.InferenceSession(ONNX_PATH, providers=["CPUExecutionProvider"])
+    with open(LABELS_PATH) as f:
+        labels = json.load(f)      # keys are strings: "0", "1", ...
+    print(f"Ready. {len(labels)} classes.")
+    yield
 
-#prepares the image for model prediction
-def preprocess_image(image_bytes: bytes) -> np.ndarray:
-    
-    img = Image.open(BytesIO(image_bytes)).convert('RGB')
-    img = img.resize((224, 224))
-    img_array = tf.keras.preprocessing.image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    preprocessed_img = tf.keras.applications.mobilenet_v2.preprocess_input(img_array)
-    return preprocessed_img
+app = FastAPI(title="Trash Classifier (ONNX)", lifespan=lifespan)
 
-#prediction Endpoint using image file 
-@app.post("/predict_with_file")
-async def predict(file: UploadFile = File(...)):
-    """Predicts the class of uploaded waste image."""
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="No image file provided")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-    try:
-        image_bytes = await file.read()
-        processed_image = preprocess_image(image_bytes)
+# ── Preprocessing (replaces AutoImageProcessor at runtime) ─────────────────
+MEAN = np.array([0.5, 0.5, 0.5], dtype=np.float32)
+STD  = np.array([0.5, 0.5, 0.5], dtype=np.float32)
 
-        prediction = model.predict(processed_image)
-        score = tf.nn.softmax(prediction[0])
-        predicted_class = CLASS_NAMES[np.argmax(score)]
-        points_awarded = POINTS_DIC.get(predicted_class, 0)
-        confidence = float(np.max(score))
+def preprocess(image: Image.Image) -> np.ndarray:
+    image = image.convert("RGB").resize((IMG_SIZE, IMG_SIZE), Image.BICUBIC)
+    arr   = np.array(image, dtype=np.float32) / 255.0     # (224,224,3)
+    arr   = (arr - MEAN) / STD                             # normalize
+    arr   = arr.transpose(2, 0, 1)[np.newaxis]             # (1,3,224,224)
+    return arr
 
-        return JSONResponse(content={
-            'predicted_class': predicted_class,
-            'confidence': f"{confidence:.2%}",
-            'recommended_dustbin': DUSTBIN_MAP.get(predicted_class),
-            'points':points_awarded
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def softmax(x: np.ndarray) -> np.ndarray:
+    e = np.exp(x - x.max())
+    return e / e.sum()
 
+# ── Inference ──────────────────────────────────────────────────────────────
+def run_inference(image: Image.Image, top_k: int = 3):
+    pixel_values = preprocess(image)
+    logits = session.run(["logits"], {"pixel_values": pixel_values})[0][0]
+    probs  = softmax(logits)
+    ranked = sorted(
+        [{"label": labels[str(i)], "confidence": round(float(probs[i]), 4)}
+         for i in range(len(probs))],
+        key=lambda x: -x["confidence"]
+    )
+    return ranked[:top_k]
+
+# ── Routes ─────────────────────────────────────────────────────────────────
 @app.get("/")
 def root():
-    return{"message" : "trash classifier is UP"}  
+    return {"status": "ok", "backend": "onnxruntime", "classes": len(labels)}
 
-# prediction Endpoint using image pub url
-@app.post("/predict_with_urls")
-async def prediction(req: PredictRequest):
+@app.post("/classify/upload")
+async def classify_upload(file: UploadFile = File(...), top_k: int = 3):
+    if not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="File must be an image.")
     try:
-        #downloads the image bytes from the URL asynchronously
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(req.image_url)
-            
-            if resp.status_code != 200:
-                raise HTTPException(status_code=400, detail="Could not download image from URL")
-            
-            image_bytes = resp.content
+        img = Image.open(BytesIO(await file.read()))
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image.")
+    return {"source": file.filename, "results": run_inference(img, top_k)}
 
-        processed_image = preprocess_image(image_bytes)
+class URLRequest(BaseModel):
+    url: str
+    top_k: int = 3
 
-        prediction = model.predict(processed_image)
-        score = tf.nn.softmax(prediction[0])
-        predicted_class = CLASS_NAMES[np.argmax(score)]
-
-        points_awarded = POINTS_DIC.get(predicted_class, 0)
-        confidence = float(np.max(score))
-
-        return JSONResponse(content={
-            'predicted_class': predicted_class,
-            'confidence': f"{confidence:.2%}",
-            'recommended_dustbin': DUSTBIN_MAP.get(predicted_class),
-            'points':points_awarded
-        })
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-if __name__ == "__main__":
-    print("http://127.0.0.1:6969") #this should produce a link fir microservice
-    uvicorn.run("main:app", host="0.0.0.0", port=6969, reload=True)
+@app.post("/classify/url")
+async def classify_url(req: URLRequest):
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(req.url)
+        r.raise_for_status()
+        img = Image.open(BytesIO(r.content))
+    except httpx.HTTPStatusError as e:
+        raise HTTPException(status_code=400, detail=f"Could not fetch URL: {e}")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not decode image from URL.")
+    return {"source": req.url, "results": run_inference(img, req.top_k)}

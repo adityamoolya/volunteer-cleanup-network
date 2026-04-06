@@ -16,6 +16,7 @@
         - Rewards: available, request redemption
         - Admin: promote, ban/unban, search, remove, rewards CRUD, restock, review requests
         - Negative Tests: 401/403/404/400 scenarios
+        - ML Classifier v2: health check, /predict_with_file, /predict_with_urls, all_probabilities validation
 
     Usage:
         1. Start the server: python main.py
@@ -880,6 +881,155 @@ def main():
 
     res = requests.get(f"{BASE_URL}/users/leaderboard")
     log("Final Leaderboard", res, 200)
+
+    # ──────────────────────────────────────────────────────────────────────────
+    # 16B. TRASH CLASSIFIER v2 MICROSERVICE + all_probabilities
+    # ──────────────────────────────────────────────────────────────────────────
+    print("\n\n" + "=" * 70)
+    print("  SECTION 16B: TRASH CLASSIFIER v2 & ALL_PROBABILITIES")
+    print("=" * 70)
+
+    CLASSIFIER_URL = "http://127.0.0.1:6969"
+    EXPECTED_CLASSES = [
+        "Battery", "Biological", "Cardboard", "Clothes", "Glass",
+        "Metal", "Paper", "Plastic", "Shoes", "Trash"
+    ]
+
+    # 16B.1 — Health check
+    try:
+        res = requests.get(f"{CLASSIFIER_URL}/")
+        log("Classifier v2 — Health Check (GET /)", res, 200)
+    except requests.ConnectionError:
+        print(f"\n{'─'*70}")
+        print(f"[⚠️ SKIP] Classifier v2 not running at {CLASSIFIER_URL} — skipping classifier tests.")
+        _skip += 7  # skip all classifier-specific tests
+        res = None
+
+    if res and res.status_code == 200:
+
+        # 16B.2 — Predict with file upload
+        try:
+            create_dummy_image()
+            with open(IMAGE_PATH, "rb") as f:
+                res = requests.post(
+                    f"{CLASSIFIER_URL}/predict_with_file",
+                    files={"file": (IMAGE_PATH, f, "image/png")}
+                )
+            data = log("Classifier v2 — /predict_with_file (upload)", res, 200)
+
+            if res.status_code == 200:
+                # Validate response structure
+                has_predicted_class = "predicted_class" in data
+                has_confidence = "confidence" in data
+                has_dustbin = "recommended_dustbin" in data
+                has_points = "points" in data
+                has_all_probs = "all_probabilities" in data
+
+                print(f"       Fields check: predicted_class={has_predicted_class}, confidence={has_confidence}, "
+                      f"dustbin={has_dustbin}, points={has_points}, all_probabilities={has_all_probs}")
+
+                if has_all_probs:
+                    all_probs = data["all_probabilities"]
+                    keys_present = sorted(all_probs.keys())
+                    keys_expected = sorted(EXPECTED_CLASSES)
+                    keys_match = keys_present == keys_expected
+                    print(f"       All 10 classes present: {'✅' if keys_match else '❌'}")
+                    if not keys_match:
+                        print(f"       Missing: {set(keys_expected) - set(keys_present)}")
+                        print(f"       Extra:   {set(keys_present) - set(keys_expected)}")
+
+                    # Verify percentages parse and roughly sum to 100%
+                    try:
+                        total = sum(float(v.replace('%', '')) for v in all_probs.values())
+                        sum_ok = 99.0 <= total <= 101.0
+                        print(f"       Probabilities sum: {total:.2f}% {'✅' if sum_ok else '❌'}")
+                    except ValueError:
+                        print("       ❌ Could not parse percentage values")
+        except Exception as e:
+            print(f"       ⚠️ /predict_with_file test skipped: {e}")
+            _skip += 1
+
+        # 16B.3 — Predict with URL
+        try:
+            res = requests.post(f"{CLASSIFIER_URL}/predict_with_urls", json={
+                "image_url": mock_img_url
+            })
+            data = log("Classifier v2 — /predict_with_urls (URL)", res, 200)
+
+            if res.status_code == 200:
+                has_all_probs = "all_probabilities" in data
+                has_points = "points" in data
+                print(f"       predicted_class: {data.get('predicted_class')}")
+                print(f"       confidence: {data.get('confidence')}")
+                print(f"       points: {data.get('points')}")
+                print(f"       all_probabilities present: {'✅' if has_all_probs else '❌'}")
+
+                if has_all_probs:
+                    for label, pct in sorted(data["all_probabilities"].items()):
+                        print(f"         {label:>12s}: {pct}")
+        except Exception as e:
+            print(f"       ⚠️ /predict_with_urls test skipped: {e}")
+            _skip += 1
+
+        # 16B.4 — Negative: predict_with_urls with bad URL
+        try:
+            res = requests.post(f"{CLASSIFIER_URL}/predict_with_urls", json={
+                "image_url": "http://this-does-not-exist.invalid/nope.jpg"
+            })
+            log("NEGATIVE: Classifier v2 — /predict_with_urls with bad URL", res, 400)
+        except Exception as e:
+            print(f"       ⚠️ Bad URL test skipped: {e}")
+            _skip += 1
+
+        # 16B.5 — Negative: predict_with_file with no file
+        try:
+            res = requests.post(f"{CLASSIFIER_URL}/predict_with_file")
+            log("NEGATIVE: Classifier v2 — /predict_with_file with no file", res, 422)
+        except Exception as e:
+            print(f"       ⚠️ No-file test skipped: {e}")
+            _skip += 1
+
+    # ── 16B.6 — Verify all_probabilities on backend Post responses ──
+
+    print(f"\n{'─'*70}")
+    print("  Checking all_probabilities in backend Post responses...")
+
+    # Give the ML background tasks a moment to finish
+    time.sleep(3)
+
+    # Re-fetch the feed and check if any post has all_probabilities populated
+    res = requests.get(f"{BASE_URL}/posts/")
+    feed_data = log("GET feed — checking for all_probabilities field", res, 200)
+
+    if res.status_code == 200 and isinstance(feed_data, list):
+        posts_with_probs = [p for p in feed_data if p.get("all_probabilities")]
+        posts_without_probs = [p for p in feed_data if not p.get("all_probabilities")]
+
+        print(f"       Posts with all_probabilities: {len(posts_with_probs)}")
+        print(f"       Posts without all_probabilities: {len(posts_without_probs)}")
+
+        if posts_with_probs:
+            sample = posts_with_probs[0]
+            print(f"       Sample post '{sample.get('id', '?')[:8]}...':")
+            print(f"         predicted_class: {sample.get('predicted_class')}")
+            print(f"         points: {sample.get('points')}")
+            probs = sample.get("all_probabilities", {})
+            for label, pct in sorted(probs.items()):
+                print(f"           {label:>12s}: {pct}")
+        else:
+            print("       ⚠️ No posts have all_probabilities yet (ML service may not have finished)")
+
+    # Also check a specific post if postA is still around
+    if postA_id:
+        res = requests.get(f"{BASE_URL}/posts/")
+        if res.status_code == 200:
+            feed = res.json()
+            post_a = next((p for p in feed if p.get("id") == postA_id), None)
+            if post_a:
+                has_field = "all_probabilities" in post_a
+                has_value = post_a.get("all_probabilities") is not None
+                print(f"\n       Post A all_probabilities field exists: {'✅' if has_field else '❌'}")
+                print(f"       Post A all_probabilities populated:    {'✅' if has_value else '⏳ pending ML'}")
 
     # ──────────────────────────────────────────────────────────────────────────
     # 17. CLEANUP & ACCOUNT DELETION

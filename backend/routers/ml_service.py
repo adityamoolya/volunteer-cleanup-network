@@ -29,7 +29,8 @@ async def process_post_ml(post_id: str, image_url: str):
         if resp.status_code == 200:
             data = resp.json()
             pred_class = data.get("predicted_class", "Unknown") 
-            points = int(data.get("points", 0))         
+            points = int(data.get("points", 0))
+            all_probs = data.get("all_probabilities", None)
             
             async with AsyncSessionLocal() as db:
                 result = await db.execute(select(models.Post).options(selectinload(models.Post.author)).where(models.Post.id == post_id))
@@ -37,6 +38,7 @@ async def process_post_ml(post_id: str, image_url: str):
                 if post:
                     post.predicted_class = pred_class
                     post.points = points
+                    post.all_probabilities = all_probs
                     await db.commit()
                     if post.author:
                         await notify_user_async(db, post.author, "Verification Complete", f"Your task was classified as {pred_class} ({points} pts).")
@@ -64,13 +66,15 @@ async def verify_volunteer_post_ml(post_id: str, image_url: str):
             
         if resp.status_code == 200:
             data = resp.json()
-            points = int(data.get("points", 0))         
+            points = int(data.get("points", 0))
+            all_probs = data.get("all_probabilities", None)
             
             async with AsyncSessionLocal() as db:
                 result = await db.execute(select(models.Post).options(selectinload(models.Post.volunteer)).where(models.Post.id == post_id))
                 post = result.scalars().first()
                 if post:
-                    post.verified_points = points 
+                    post.verified_points = points
+                    post.all_probabilities = all_probs
                     await db.commit()
                     logger.info(f"[Verification-----] Post {post_id} check: ML found {points} pts")
                     

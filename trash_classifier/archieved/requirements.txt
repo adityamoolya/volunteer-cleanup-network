@@ -1,0 +1,10 @@
+tensorflow
+#tensorflow-cpu
+Pillow
+fastapi
+uvicorn
+numpy
+python-multipart
+httpx
+Pillow
+
