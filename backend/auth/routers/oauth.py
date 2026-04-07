@@ -47,7 +47,17 @@ async def github_oauth(payload: FirebaseAuthRequest, db: AsyncSession = Depends(
         user = result.scalar_one_or_none()
 
         if not user:
-            user = User(email=email)
+            # Generate username from email prefix (e.g. "john" from "john@gmail.com")
+            base_username = email.split("@")[0].lower()
+            username = base_username
+
+            # Check if username is taken, if so add a short suffix
+            existing = await db.execute(select(User).where(User.username == username))
+            if existing.scalar_one_or_none():
+                import secrets
+                username = f"{base_username}_{secrets.token_hex(3)}"
+
+            user = User(email=email, username=username)
             db.add(user)
             await db.flush()
 

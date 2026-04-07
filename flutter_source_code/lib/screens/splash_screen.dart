@@ -16,7 +16,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _scaleAnim;
 
   bool _isBackendUp = false;
-  bool _isMLUp = false;
+  // bool _isMLUp = false;
 
   @override
   void initState() {
@@ -41,19 +41,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   Future<void> _startWarmingUp() async {
     // Continue polling until BOTH are up
-    while (!_isBackendUp || !_isMLUp) {
+    while (!_isBackendUp ) {
       if (!_isBackendUp) {
         _isBackendUp = await _startup.checkOnlyBackend();
       }
-      if (!_isMLUp) {
-        _isMLUp = await _startup.checkOnlyML();
-      }
+      // if (!_isMLUp) {
+      //   _isMLUp = await _startup.checkOnlyML();
+      // }
 
       if (!mounted) return;
 
       setState(() {});
 
-      if (!_isBackendUp || !_isMLUp) {
+      if (!_isBackendUp) {
         await Future.delayed(const Duration(seconds: 3));
       }
     }
@@ -122,13 +122,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             
             // Status indicators
             _buildStatusRow("Backend Server", _isBackendUp),
-            const SizedBox(height: 16),
-            _buildStatusRow("ML Microservice", _isMLUp),
+            // const SizedBox(height: 16),
+            // _buildStatusRow("ML Microservice", _isMLUp),
             
             const SizedBox(height: 40),
             
             // Loading hint
-            if (!_isBackendUp || !_isMLUp)
+            if (!_isBackendUp)
               const Text(
                 "Warming up free-tier servers...\nThis may take a moment",
                 textAlign: TextAlign.center,

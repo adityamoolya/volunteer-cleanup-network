@@ -14,6 +14,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _isGitHubLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
 
@@ -29,15 +30,31 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_usernameController.text.isEmpty || _passwordController.text.isEmpty) {
-      setState(() => _errorMessage = "Username and Password are required.");
-      return;
-    }
+  // ─── Get FCM Token for push notifications ───
+  Future<String?> _getFcmToken() async {
+    // TODO: Replace with actual Firebase Messaging token retrieval
+    // e.g.: return await FirebaseMessaging.instance.getToken();
+    // For now, returning null — backend accepts it as optional
+    // but on real APK builds this MUST return the real token.
+    return null;
+  }
 
-    if (!_isLogin && _emailController.text.isEmpty) {
-      setState(() => _errorMessage = "Email is required for registration.");
-      return;
+  // ─── Email/Password Submit ───
+  Future<void> _submit() async {
+    // Validation
+    if (_isLogin) {
+      if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+        setState(() => _errorMessage = "Email and Password are required.");
+        return;
+      }
+    } else {
+      if (_usernameController.text.isEmpty ||
+          _emailController.text.isEmpty ||
+          _passwordController.text.isEmpty) {
+        setState(
+            () => _errorMessage = "Username, Email and Password are required.");
+        return;
+      }
     }
 
     setState(() {
@@ -45,13 +62,15 @@ class _AuthScreenState extends State<AuthScreen> {
       _errorMessage = null;
     });
 
-    final username = _usernameController.text.trim();
-    final password = _passwordController.text.trim();
     final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+    final username = _usernameController.text.trim();
 
     try {
       if (_isLogin) {
-        bool success = await _authService.login(username, password);
+        // Get FCM token for push notifications
+        final fcmToken = await _getFcmToken();
+        bool success = await _authService.login(email, password, fcmToken);
 
         if (success && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -81,7 +100,7 @@ class _AuthScreenState extends State<AuthScreen> {
             _isLogin = true;
             _errorMessage = null;
           });
-          
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -94,10 +113,10 @@ class _AuthScreenState extends State<AuthScreen> {
               backgroundColor: Color(0xFF2E7D32),
             ),
           );
-          
+
           _usernameController.clear();
           _passwordController.clear();
-          _emailController.clear();
+          // Keep email so user can login immediately
         }
       }
     } catch (e) {
@@ -108,6 +127,49 @@ class _AuthScreenState extends State<AuthScreen> {
       if (mounted) {
         setState(() {
           _isLoading = false;
+        });
+      }
+    }
+  }
+
+  // ─── GitHub OAuth ───
+  Future<void> _loginWithGitHub() async {
+    setState(() {
+      _isGitHubLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      bool success = await _authService.loginWithGitHub();
+
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 12),
+                Text("GitHub Login Successful!"),
+              ],
+            ),
+            backgroundColor: Color(0xFF2E7D32),
+            duration: Duration(seconds: 1),
+          ),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScaffold()),
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _errorMessage = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isGitHubLoading = false;
         });
       }
     }
@@ -137,7 +199,8 @@ class _AuthScreenState extends State<AuthScreen> {
                       ],
                     ),
                   ),
-                  child: const Icon(Icons.eco, size: 60, color: Color(0xFF4CAF50)),
+                  child: const Icon(Icons.eco,
+                      size: 60, color: Color(0xFF4CAF50)),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -182,38 +245,16 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red, size: 18),
-                          onPressed: () => setState(() => _errorMessage = null),
+                          icon: const Icon(Icons.close,
+                              color: Colors.red, size: 18),
+                          onPressed: () =>
+                              setState(() => _errorMessage = null),
                         ),
                       ],
                     ),
                   ),
 
-                // Username Field
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: TextField(
-                    controller: _usernameController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: InputDecoration(
-                      labelText: "Username",
-                      labelStyle: const TextStyle(color: Colors.white54),
-                      prefixIcon: const Icon(Icons.person_outline, color: Colors.white54),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                      filled: true,
-                      fillColor: const Color(0xFF1E1E1E),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Email Field (Register only)
+                // Username Field (Register only)
                 if (!_isLogin) ...[
                   Container(
                     decoration: BoxDecoration(
@@ -221,13 +262,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: TextField(
-                      controller: _emailController,
-                      keyboardType: TextInputType.emailAddress,
+                      controller: _usernameController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        labelText: "Email Address",
+                        labelText: "Username",
                         labelStyle: const TextStyle(color: Colors.white54),
-                        prefixIcon: const Icon(Icons.email_outlined, color: Colors.white54),
+                        prefixIcon: const Icon(Icons.person_outline,
+                            color: Colors.white54),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -239,6 +280,32 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                   const SizedBox(height: 16),
                 ],
+
+                // Email Field (Always shown — used for login AND register)
+                Container(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: TextField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: "Email Address",
+                      labelStyle: const TextStyle(color: Colors.white54),
+                      prefixIcon: const Icon(Icons.email_outlined,
+                          color: Colors.white54),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: const Color(0xFF1E1E1E),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
                 // Password Field
                 Container(
@@ -253,13 +320,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     decoration: InputDecoration(
                       labelText: "Password",
                       labelStyle: const TextStyle(color: Colors.white54),
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.white54),
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: Colors.white54),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Colors.white54,
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () =>
+                            setState(() => _obscurePassword = !_obscurePassword),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -286,7 +357,8 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? null
                         : [
                             BoxShadow(
-                              color: const Color(0xFF2E7D32).withOpacity(0.3),
+                              color:
+                                  const Color(0xFF2E7D32).withOpacity(0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -323,6 +395,78 @@ class _AuthScreenState extends State<AuthScreen> {
                   ),
                 ),
 
+                // ─── Divider ───
+                const SizedBox(height: 24),
+                Row(
+                  children: [
+                    Expanded(
+                        child: Divider(
+                            color: Colors.white.withOpacity(0.15),
+                            thickness: 1)),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        "OR",
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.4),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                        child: Divider(
+                            color: Colors.white.withOpacity(0.15),
+                            thickness: 1)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // ─── GitHub OAuth Button ───
+                Container(
+                  height: 56,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1E1E1E),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: Colors.white.withOpacity(0.1),
+                    ),
+                  ),
+                  child: ElevatedButton.icon(
+                    onPressed:
+                        (_isGitHubLoading || _isLoading) ? null : _loginWithGitHub,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      disabledBackgroundColor: const Color(0xFF1E1E1E),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    icon: _isGitHubLoading
+                        ? const SizedBox(
+                            height: 20,
+                            width: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(Icons.code, color: Colors.white, size: 22),
+                    label: Text(
+                      _isGitHubLoading
+                          ? "Connecting..."
+                          : "Continue with GitHub",
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 15,
+                      ),
+                    ),
+                  ),
+                ),
+
                 // Toggle Mode Button
                 const SizedBox(height: 24),
                 TextButton(
@@ -334,7 +478,8 @@ class _AuthScreenState extends State<AuthScreen> {
                   },
                   child: RichText(
                     text: TextSpan(
-                      text: _isLogin ? "New here? " : "Already have an account? ",
+                      text:
+                          _isLogin ? "New here? " : "Already have an account? ",
                       style: const TextStyle(color: Colors.white54),
                       children: [
                         TextSpan(

@@ -1,26 +1,20 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/profile_model.dart';
+import 'auth_interceptor.dart';
 
 class UserService {
-  static final String baseUrl = dotenv.env['BACKEND_URL'] ?? 'http://10.0.2.2:8000';
-
+  static String get baseUrl => dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "") ?? 'http://10.0.2.2:8080';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
   UserService() {
     _dio.options.baseUrl = baseUrl;
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: 'jwt_token');
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        return handler.next(options);
-      },
-    ));
+
+    // Use centralized auth interceptor for automatic token attachment + refresh
+    _dio.interceptors.add(AuthInterceptor(_dio));
   }
 
   Future<ProfileStats> getMyStats() async {
@@ -36,7 +30,7 @@ class UserService {
     }
   }
 
-  // NEW: Approve mission request
+  // Approve mission request
   Future<bool> approveMissionRequest(int postId) async {
     try {
       final response = await _dio.post(

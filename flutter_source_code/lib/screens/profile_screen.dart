@@ -1,7 +1,7 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/user_service.dart';
+import '../services/auth_service.dart';
 import '../models/profile_model.dart';
 import 'auth_screen.dart';
 
@@ -14,7 +14,6 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
-  final FlutterSecureStorage _storage = const FlutterSecureStorage();
   bool _isLoading = true;
   ProfileStats? _stats;
   String? _errorMessage;
@@ -73,7 +72,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
 
     if (confirmed == true) {
-      await _storage.delete(key: 'jwt_token');
+      // Server-side logout (revokes refresh token) + clears local storage
+      await AuthService().logout();
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
