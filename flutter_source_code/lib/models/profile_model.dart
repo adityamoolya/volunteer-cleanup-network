@@ -1,4 +1,5 @@
 import 'post_model.dart';
+import 'reward_model.dart';
 
 class ProfileStats {
   final String username;
@@ -7,6 +8,7 @@ class ProfileStats {
   final int solvedCount;
   final List<Post> myRequests;
   final List<Post> myContributions;
+  final List<RedemptionRequest> myRewards;
 
   ProfileStats({
     required this.username,
@@ -15,6 +17,7 @@ class ProfileStats {
     required this.solvedCount,
     required this.myRequests,
     required this.myContributions,
+    required this.myRewards,
   });
 
   factory ProfileStats.fromJson(Map<String, dynamic> json) {
@@ -28,6 +31,9 @@ class ProfileStats {
           .toList() ?? [],
       myContributions: (json['my_contributions'] as List?)
           ?.map((x) => Post.fromJson(x))
+          .toList() ?? [],
+      myRewards: (json['my_rewards'] as List?)
+          ?.map((x) => RedemptionRequest.fromJson(x))
           .toList() ?? [],
     );
   }

@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
+import '../main.dart';
 import '../services/feed_service.dart';
 
 class CreatePostScreen extends StatefulWidget {
@@ -115,7 +116,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _showImageSourceDialog() {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -129,27 +130,27 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: Colors.white24,
+                  color: AppColors.textTertiary,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
                 "Choose Photo Source",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
               ),
               const SizedBox(height: 24),
               ListTile(
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32).withOpacity(0.2),
+                    color: AppColors.primary.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.camera_alt, color: Color(0xFF4CAF50)),
+                  child: const Icon(Icons.camera_alt, color: AppColors.primaryLight),
                 ),
-                title: const Text("Take Photo", style: TextStyle(color: Colors.white)),
-                subtitle: const Text("Use camera to capture", style: TextStyle(color: Colors.white54)),
+                title: const Text("Take Photo", style: TextStyle(color: AppColors.textPrimary)),
+                subtitle: const Text("Use camera to capture", style: TextStyle(color: AppColors.textSecondary)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickFromCamera();
@@ -160,13 +161,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 leading: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2E7D32).withOpacity(0.2),
+                    color: AppColors.primary.withOpacity(0.2),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(Icons.photo_library, color: Color(0xFF4CAF50)),
+                  child: const Icon(Icons.photo_library, color: AppColors.primaryLight),
                 ),
-                title: const Text("Choose from Gallery", style: TextStyle(color: Colors.white)),
-                subtitle: const Text("Select existing photo", style: TextStyle(color: Colors.white54)),
+                title: const Text("Choose from Gallery", style: TextStyle(color: AppColors.textPrimary)),
+                subtitle: const Text("Select existing photo", style: TextStyle(color: AppColors.textSecondary)),
                 onTap: () {
                   Navigator.pop(context);
                   _pickFromGallery();
@@ -180,7 +181,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   }
 
   Future<void> _submitPost() async {
-    // Validation
     if (_selectedImage == null) {
       setState(() => _errorMessage = "Please select an image of the environmental issue.");
       return;
@@ -204,7 +204,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     });
 
     try {
-      // 1. Upload Image to Cloudinary
       final uploadResult = await _feedService.uploadImage(_selectedImage!);
 
       if (uploadResult == null ||
@@ -215,7 +214,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       setState(() => _uploadStatus = "Creating report...");
 
-      // 2. Create Post with image URL and public_id
       bool success = await _feedService.createPost(
         uploadResult['url']!,
         uploadResult['public_id']!,
@@ -227,7 +225,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (success && mounted) {
         setState(() => _uploadStatus = "Analyzing with AI...");
         
-        // Brief delay to show AI analysis message
         await Future.delayed(const Duration(milliseconds: 500));
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -239,7 +236,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 Text("Report submitted! AI is analyzing..."),
               ],
             ),
-            backgroundColor: Color(0xFF2E7D32),
+            backgroundColor: AppColors.primary,
             duration: Duration(seconds: 3),
           ),
         );
@@ -263,11 +260,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Text("Report Issue", style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFF1E1E1E),
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close),
@@ -285,22 +282,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 padding: const EdgeInsets.all(14),
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.1),
+                  color: AppColors.danger.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.red.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.danger.withOpacity(0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.red),
+                    const Icon(Icons.error_outline, color: AppColors.danger),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         _errorMessage!,
-                        style: const TextStyle(color: Colors.red),
+                        style: const TextStyle(color: AppColors.danger),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.close, color: Colors.red, size: 18),
+                      icon: const Icon(Icons.close, color: AppColors.danger, size: 18),
                       onPressed: () => setState(() => _errorMessage = null),
                     ),
                   ],
@@ -313,12 +310,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Container(
                 height: 280,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1E1E1E),
+                  color: AppColors.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
                     color: _selectedImage != null 
-                      ? const Color(0xFF2E7D32) 
-                      : Colors.white24,
+                      ? AppColors.primary 
+                      : AppColors.border,
                     width: 2,
                   ),
                 ),
@@ -329,20 +326,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2E7D32).withOpacity(0.1),
+                              color: AppColors.primary.withOpacity(0.1),
                               shape: BoxShape.circle,
                             ),
                             child: const Icon(
                               Icons.add_a_photo,
                               size: 50,
-                              color: Color(0xFF4CAF50),
+                              color: AppColors.primaryLight,
                             ),
                           ),
                           const SizedBox(height: 16),
                           const Text(
                             "Tap to add photo",
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
@@ -350,7 +347,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           const SizedBox(height: 8),
                           const Text(
                             "Take a photo or choose from gallery",
-                            style: TextStyle(color: Colors.white54),
+                            style: TextStyle(color: AppColors.textSecondary),
                           ),
                         ],
                       )
@@ -365,7 +362,6 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               height: double.infinity,
                             ),
                           ),
-                          // Change Image Button
                           Positioned(
                             top: 12,
                             right: 12,
@@ -381,14 +377,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               ),
                             ),
                           ),
-                          // Success indicator
                           Positioned(
                             bottom: 12,
                             left: 12,
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF2E7D32),
+                                color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Row(
@@ -414,26 +409,26 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             // Caption Input
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: TextField(
                 controller: _captionController,
                 maxLines: 4,
                 maxLength: 300,
-                style: const TextStyle(color: Colors.white),
+                style: const TextStyle(color: AppColors.textPrimary),
                 decoration: InputDecoration(
                   labelText: "Description",
-                  labelStyle: const TextStyle(color: Colors.white54),
+                  labelStyle: const TextStyle(color: AppColors.textSecondary),
                   hintText: "Describe the issue (e.g., garbage pile, plastic waste, illegal dumping)",
-                  hintStyle: const TextStyle(color: Colors.white24),
+                  hintStyle: const TextStyle(color: AppColors.textTertiary),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide.none,
                   ),
                   filled: true,
-                  fillColor: const Color(0xFF1E1E1E),
-                  counterStyle: const TextStyle(color: Colors.white38),
+                  fillColor: AppColors.surface,
+                  counterStyle: const TextStyle(color: AppColors.textTertiary),
                 ),
                 onChanged: (value) => setState(() {}),
               ),
@@ -445,11 +440,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
+                color: AppColors.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: _currentPosition != null 
-                    ? const Color(0xFF2E7D32).withOpacity(0.5)
+                    ? AppColors.primary.withOpacity(0.5)
                     : Colors.orange.withOpacity(0.5),
                 ),
               ),
@@ -459,13 +454,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     padding: const EdgeInsets.all(10),
                     decoration: BoxDecoration(
                       color: _currentPosition != null
-                          ? const Color(0xFF2E7D32).withOpacity(0.2)
+                          ? AppColors.primary.withOpacity(0.2)
                           : Colors.orange.withOpacity(0.2),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       _currentPosition != null ? Icons.location_on : Icons.location_searching,
-                      color: _currentPosition != null ? const Color(0xFF4CAF50) : Colors.orange,
+                      color: _currentPosition != null ? AppColors.primaryLight : Colors.orange,
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -477,18 +472,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           _currentPosition != null ? "Location Captured" : "Getting location...",
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: _currentPosition != null ? Colors.white : Colors.orange,
+                            color: _currentPosition != null ? AppColors.textPrimary : Colors.orange,
                           ),
                         ),
                         if (_currentPosition != null)
                           Text(
                             "${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}",
-                            style: const TextStyle(fontSize: 12, color: Colors.white54),
+                            style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                           )
                         else
                           const Text(
                             "Required for volunteers to find the location",
-                            style: TextStyle(fontSize: 12, color: Colors.white38),
+                            style: TextStyle(fontSize: 12, color: AppColors.textTertiary),
                           ),
                       ],
                     ),
@@ -511,14 +506,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 gradient: _isLoading
                     ? null
                     : const LinearGradient(
-                        colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                        colors: [AppColors.primary, AppColors.primaryLight],
                       ),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: _isLoading
                     ? null
                     : [
                         BoxShadow(
-                          color: const Color(0xFF2E7D32).withOpacity(0.3),
+                          color: AppColors.primary.withOpacity(0.3),
                           blurRadius: 10,
                           offset: const Offset(0, 4),
                         ),
@@ -529,7 +524,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.transparent,
                   shadowColor: Colors.transparent,
-                  disabledBackgroundColor: Colors.grey[800],
+                  disabledBackgroundColor: AppColors.surfaceLight,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(16),
                   ),
@@ -578,13 +573,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
             const SizedBox(height: 16),
 
-            // Info Text
             const Text(
               "Your report will be analyzed by our AI and made visible to volunteers in your area.",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.white38,
+                color: AppColors.textTertiary,
                 fontStyle: FontStyle.italic,
               ),
             ),
@@ -596,18 +590,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: AppColors.info.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  border: Border.all(color: AppColors.info.withOpacity(0.3)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome, color: Colors.blue, size: 14),
+                    Icon(Icons.auto_awesome, color: AppColors.info, size: 14),
                     SizedBox(width: 6),
                     Text(
                       "AI-Powered Classification",
-                      style: TextStyle(color: Colors.blue, fontSize: 11),
+                      style: TextStyle(color: AppColors.info, fontSize: 11),
                     ),
                   ],
                 ),

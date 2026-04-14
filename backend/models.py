@@ -110,6 +110,7 @@ class Reward(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()), index=True)
     name = Column(String(100), nullable=False)
     description = Column(Text, nullable=True)
+    image_url = Column(String(500), nullable=True)  # Cloudinary brand logo URL
     cost_in_points = Column(Integer, nullable=False)
     stock = Column(Integer, default=0)
     created_at = Column(DateTime(timezone=True), server_default=func.now())

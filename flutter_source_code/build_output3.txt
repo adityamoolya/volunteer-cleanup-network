@@ -1,0 +1,39 @@
+﻿Running Gradle task 'assembleDebug'...                          
+flutter : 
+At line:1 char:1
++ flutter build apk --debug 2>&1 | Out-File 
+-FilePath "$PWD\build_outpu ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:St 
+   ring) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task 
+':app:copyFlutterAssetsDebug'.
+> Cannot access input property 'rootSpec$1$1' of 
+task ':app:copyFlutterAssetsDebug'. Accessing 
+unreadable inputs or outputs is not supported. 
+Declare the task as untracked by using 
+Task.doNotTrackState(). For more information, 
+please refer to https://docs.gradle.org/8.12/user
+guide/incremental_build.html#sec:disable-state-tr
+acking in the Gradle documentation.
+   > Failed to create MD5 hash for file 'D:\pytho
+nn\ENV-2\volunteer-cleanup-network\flutter_source
+_code\build\app\intermediates\flutter\debug\flutt
+er_assets\8a42115e' as it does not exist.
+
+* Try:
+> Run with --stacktrace option to get the stack 
+trace.
+> Run with --info or --debug option to get more 
+log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 4m 40s
+Running Gradle task 'assembleDebug'...                            280.9s
+Gradle task assembleDebug failed with exit code 1

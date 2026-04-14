@@ -134,6 +134,7 @@ class UserAdminView(BaseModel):
 class RewardBase(BaseModel):
     name: str
     description: Optional[str] = None
+    image_url: Optional[str] = None  # Cloudinary brand logo URL
     cost_in_points: int
     stock: int
 

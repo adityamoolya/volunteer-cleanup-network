@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../main.dart';
 import '../services/startup_service.dart';
 import 'auth_screen.dart';
 import 'home_scaffold.dart';
@@ -16,7 +17,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _scaleAnim;
 
   bool _isBackendUp = false;
-  // bool _isMLUp = false;
 
   @override
   void initState() {
@@ -40,14 +40,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   }
 
   Future<void> _startWarmingUp() async {
-    // Continue polling until BOTH are up
-    while (!_isBackendUp ) {
+    while (!_isBackendUp) {
       if (!_isBackendUp) {
         _isBackendUp = await _startup.checkOnlyBackend();
       }
-      // if (!_isMLUp) {
-      //   _isMLUp = await _startup.checkOnlyML();
-      // }
 
       if (!mounted) return;
 
@@ -58,7 +54,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       }
     }
 
-    // Now that servers are up, check session persistence
     bool loggedIn = await _startup.validateSession();
 
     if (mounted) {
@@ -74,7 +69,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -88,12 +83,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: [
-                      const Color(0xFF2E7D32).withOpacity(0.3),
-                      const Color(0xFF4CAF50).withOpacity(0.1),
+                      AppColors.primary.withOpacity(0.3),
+                      AppColors.primaryLight.withOpacity(0.1),
                     ],
                   ),
                 ),
-                child: const Icon(Icons.eco, size: 80, color: Color(0xFF4CAF50)),
+                child: const Icon(Icons.eco, size: 80, color: AppColors.primaryLight),
               ),
             ),
             const SizedBox(height: 32),
@@ -104,7 +99,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               style: TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 letterSpacing: 2,
               ),
             ),
@@ -113,7 +108,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               "Volunteer Cleanup Network",
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.white54,
+                color: AppColors.textSecondary,
                 letterSpacing: 1,
               ),
             ),
@@ -122,17 +117,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             
             // Status indicators
             _buildStatusRow("Backend Server", _isBackendUp),
-            // const SizedBox(height: 16),
-            // _buildStatusRow("ML Microservice", _isMLUp),
             
             const SizedBox(height: 40),
             
-            // Loading hint
             if (!_isBackendUp)
               const Text(
                 "Warming up free-tier servers...\nThis may take a moment",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white38, fontSize: 12),
+                style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
               ),
           ],
         ),
@@ -145,10 +137,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       width: 280,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isUp ? const Color(0xFF2E7D32) : Colors.white12,
+          color: isUp ? AppColors.primary : AppColors.border,
         ),
       ),
       child: Row(
@@ -159,10 +151,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: AnimatedSwitcher(
               duration: const Duration(milliseconds: 500),
               child: isUp
-                  ? const Icon(Icons.check_circle, color: Color(0xFF4CAF50), key: ValueKey('done'))
+                  ? const Icon(Icons.check_circle, color: AppColors.primaryLight, key: ValueKey('done'))
                   : const CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: Colors.white54,
+                      color: AppColors.textSecondary,
                       key: ValueKey('loading'),
                     ),
             ),
@@ -172,7 +164,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             child: Text(
               label,
               style: TextStyle(
-                color: isUp ? Colors.white : Colors.white54,
+                color: isUp ? AppColors.textPrimary : AppColors.textSecondary,
                 fontWeight: isUp ? FontWeight.bold : FontWeight.normal,
               ),
             ),
@@ -181,12 +173,12 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: const Color(0xFF2E7D32).withOpacity(0.2),
+                color: AppColors.primary.withOpacity(0.2),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(
                 "Ready",
-                style: TextStyle(color: Color(0xFF4CAF50), fontSize: 12),
+                style: TextStyle(color: AppColors.primaryLight, fontSize: 12),
               ),
             ),
         ],

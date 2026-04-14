@@ -7,7 +7,7 @@ import 'package:geolocator/geolocator.dart';
 import '../services/feed_service.dart';
 
 class ContributeDialog extends StatefulWidget {
-  final int postId;
+   final int postId;
   final double postLatitude;
   final double postLongitude;
   final VoidCallback onSuccess;
@@ -218,7 +218,7 @@ class _ContributeDialogState extends State<ContributeDialog> {
 
       // 2. Start work (Clock In)
       bool success = await _feedService.startWork(
-        widget.postId,
+        widget.postId as String,
         uploadResult['url']!,
       );
 

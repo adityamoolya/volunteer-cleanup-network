@@ -1,0 +1,398 @@
+﻿Running Gradle task 'assembleDebug'...                          
+flutter : 
+At line:1 char:18
++ flutter pub get; flutter build apk --debug 
+2>&1 | Out-File -FilePath  ...
++                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (:St 
+   ring) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task 
+':firebase_core:compileDebugJavaWithJavac'.
+> Could not resolve all files for configuration 
+':firebase_core:debugCompileClasspath'.
+   > Could not resolve org.jetbrains.kotlinx:kotl
+inx-coroutines-play-services:1.7.1.
+     Required by:
+         project :firebase_core > 
+com.google.firebase:firebase-common:21.0.0
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://storag
+e.googleapis.com/download.flutter.io/org/jetbrain
+s/kotlinx/kotlinx-coroutines-play-services/1.7.1/
+kotlinx-coroutines-play-services-1.7.1.pom'.
+            > Could not GET 'https://storage.goog
+leapis.com/download.flutter.io/org/jetbrains/kotl
+inx/kotlinx-coroutines-play-services/1.7.1/kotlin
+x-coroutines-play-services-1.7.1.pom'.
+               > storage.googleapis.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+> There are 15 more failures with identical 
+causes.
+
+* Try:
+> Run with --stacktrace option to get the stack 
+trace.
+> Run with --info or --debug option to get more 
+log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 1m 57s
+Running Gradle task 'assembleDebug'...                            119.7s
+[!] Gradle threw an error while downloading 
+artifacts from the network.
+Retrying Gradle Build: #1, wait time: 100ms
+Running Gradle task 'assembleDebug'...                          
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task 
+':firebase_core:compileDebugJavaWithJavac'.
+> Could not resolve all files for configuration 
+':firebase_core:debugCompileClasspath'.
+   > Could not resolve org.jetbrains.kotlinx:kotl
+inx-coroutines-play-services:1.7.1.
+     Required by:
+         project :firebase_core > 
+com.google.firebase:firebase-common:21.0.0
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://storag
+e.googleapis.com/download.flutter.io/org/jetbrain
+s/kotlinx/kotlinx-coroutines-play-services/1.7.1/
+kotlinx-coroutines-play-services-1.7.1.pom'.
+            > Could not GET 'https://storage.goog
+leapis.com/download.flutter.io/org/jetbrains/kotl
+inx/kotlinx-coroutines-play-services/1.7.1/kotlin
+x-coroutines-play-services-1.7.1.pom'.
+               > storage.googleapis.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://dl.goo
+gle.com/dl/android/maven2/org/jetbrains/kotlinx/k
+otlinx-coroutines-play-services/1.7.1/kotlinx-cor
+outines-play-services-1.7.1.pom'.
+            > Could not GET 'https://dl.google.co
+m/dl/android/maven2/org/jetbrains/kotlinx/kotlinx
+-coroutines-play-services/1.7.1/kotlinx-coroutine
+s-play-services-1.7.1.pom'.
+               > dl.google.com
+      > Could not resolve org.jetbrains.kotlinx:k
+otlinx-coroutines-play-services:1.7.1.
+         > Could not get resource 'https://repo.m
+aven.apache.org/maven2/org/jetbrains/kotlinx/kotl
+inx-coroutines-play-services/1.7.1/kotlinx-corout
+ines-play-services-1.7.1.pom'.
+            > Could not GET 'https://repo.maven.a
+pache.org/maven2/org/jetbrains/kotlinx/kotlinx-co
+routines-play-services/1.7.1/kotlinx-coroutines-p
+lay-services-1.7.1.pom'.
+               > repo.maven.apache.org
+> There are 15 more failures with identical 
+causes.
+
+* Try:
+> Run with --stacktrace option to get the stack 
+trace.
+> Run with --info or --debug option to get more 
+log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 20s
+Running Gradle task 'assembleDebug'...                             23.8s
+[!] Gradle threw an error while downloading 
+artifacts from the network.
+Gradle task assembleDebug failed with exit code 1

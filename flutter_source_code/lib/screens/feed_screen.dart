@@ -1,6 +1,7 @@
 // lib/screens/feed_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../main.dart';
 import '../services/feed_service.dart';
 import '../models/post_model.dart';
 import 'post_detail_screen.dart';
@@ -19,6 +20,7 @@ class FeedScreenState extends State<FeedScreen> {
   bool _isLoading = true;
   bool _isRefreshing = false;
   String? _errorMessage;
+  int? _showingStatsIndex;
 
   @override
   void initState() {
@@ -69,17 +71,17 @@ class FeedScreenState extends State<FeedScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: const Color(0xFF121212),
-        body: const Center(
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.eco, size: 60, color: Color(0xFF2E7D32)),
+              Icon(Icons.eco, size: 60, color: AppColors.primary),
               SizedBox(height: 24),
-              CircularProgressIndicator(color: Color(0xFF2E7D32)),
+              CircularProgressIndicator(color: AppColors.primaryLight),
               SizedBox(height: 16),
-              Text("Loading...", style: TextStyle(color: Colors.white70)),
+              Text("Loading...", style: TextStyle(color: AppColors.textSecondary)),
             ],
           ),
         ),
@@ -88,23 +90,23 @@ class FeedScreenState extends State<FeedScreen> {
 
     if (_errorMessage != null) {
       return Scaffold(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.background,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.cloud_off, color: Colors.white38, size: 80),
+              const Icon(Icons.cloud_off, color: AppColors.textTertiary, size: 80),
               const SizedBox(height: 24),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70)),
+                child: Text(_errorMessage!, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.textSecondary)),
               ),
               const SizedBox(height: 24),
               ElevatedButton.icon(
                 onPressed: _loadFeed,
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 label: const Text("Retry", style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               ),
             ],
           ),
@@ -114,22 +116,22 @@ class FeedScreenState extends State<FeedScreen> {
 
     if (_posts.isEmpty) {
       return Scaffold(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.background,
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.eco_outlined, color: Colors.white24, size: 100),
+              const Icon(Icons.eco_outlined, color: AppColors.textTertiary, size: 100),
               const SizedBox(height: 24),
-              const Text("The area is clean!", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+              const Text("The area is clean!", style: TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
-              const Text("No cleanup reports nearby.", style: TextStyle(color: Colors.white54)),
+              const Text("No cleanup reports nearby.", style: TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: _loadFeed,
                 icon: const Icon(Icons.refresh, color: Colors.white),
                 label: const Text("Refresh", style: TextStyle(color: Colors.white)),
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primary),
               ),
             ],
           ),
@@ -138,7 +140,7 @@ class FeedScreenState extends State<FeedScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
           PageView.builder(
@@ -146,11 +148,14 @@ class FeedScreenState extends State<FeedScreen> {
             scrollDirection: Axis.vertical,
             itemCount: _posts.length,
             onPageChanged: (index) {
+              setState(() {
+                _showingStatsIndex = null;
+              });
               if (index + 1 < _posts.length) {
                 precacheImage(CachedNetworkImageProvider(_posts[index + 1].imageUrl), context);
               }
             },
-            itemBuilder: (context, index) => _buildPostCard(_posts[index]),
+            itemBuilder: (context, index) => _buildPostCard(_posts[index], index),
           ),
 
           // Top Bar
@@ -170,7 +175,7 @@ class FeedScreenState extends State<FeedScreen> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.eco, color: Color(0xFF4CAF50), size: 28),
+                  const Icon(Icons.eco, color: AppColors.primaryLight, size: 28),
                   const SizedBox(width: 8),
                   const Text("ReLeaf", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const Spacer(),
@@ -186,11 +191,13 @@ class FeedScreenState extends State<FeedScreen> {
     );
   }
 
-  Widget _buildPostCard(Post post) {
+  Widget _buildPostCard(Post post, int index) {
+    final bool showStats = _showingStatsIndex == index;
     return GestureDetector(
-      onTap: () async {
-        final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)));
-        if (result == true) _loadFeed();
+      onTap: () {
+        setState(() {
+          _showingStatsIndex = showStats ? null : index;
+        });
       },
       child: Stack(
         fit: StackFit.expand,
@@ -198,8 +205,8 @@ class FeedScreenState extends State<FeedScreen> {
           CachedNetworkImage(
             imageUrl: post.imageUrl,
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(color: const Color(0xFF1E1E1E), child: const Center(child: CircularProgressIndicator(color: Color(0xFF2E7D32)))),
-            errorWidget: (_, __, ___) => Container(color: const Color(0xFF1E1E1E), child: const Icon(Icons.broken_image, color: Colors.white54, size: 60)),
+            placeholder: (_, __) => Container(color: AppColors.surface, child: const Center(child: CircularProgressIndicator(color: AppColors.primary))),
+            errorWidget: (_, __, ___) => Container(color: AppColors.surface, child: const Icon(Icons.broken_image, color: AppColors.textSecondary, size: 60)),
           ),
           Container(
             decoration: BoxDecoration(
@@ -219,7 +226,7 @@ class FeedScreenState extends State<FeedScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)]),
+                    gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryLight]),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -244,16 +251,16 @@ class FeedScreenState extends State<FeedScreen> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withAlpha(50),
+                        color: AppColors.amber.withAlpha(50),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.amber),
+                        border: Border.all(color: AppColors.amber),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.emoji_events, color: Colors.amber, size: 18),
+                          const Icon(Icons.emoji_events, color: AppColors.amber, size: 18),
                           const SizedBox(width: 6),
-                          Text("${post.points} Points", style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                          Text("${post.points} Points", style: const TextStyle(color: AppColors.amber, fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ),
@@ -262,21 +269,72 @@ class FeedScreenState extends State<FeedScreen> {
                   ],
                 ),
                 const SizedBox(height: 16),
-                Container(
-                  width: double.infinity,
-                  height: 50,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)]),
-                    borderRadius: BorderRadius.circular(25),
-                  ),
-                  child: const Center(
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
+                if (showStats && post.allProbabilities != null && post.allProbabilities!.isNotEmpty)
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(Icons.volunteer_activism, color: Colors.white),
-                        SizedBox(width: 8),
-                        Text("TAP TO VOLUNTEER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Text("Trash Verification Metrics", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        ...post.allProbabilities!.entries.map((e) {
+                          double percent = 0.0;
+                          if (e.value is String) {
+                             percent = double.tryParse(e.value.toString().replaceAll('%', '')) ?? 0.0;
+                          } else if (e.value is num) {
+                             percent = (e.value as num).toDouble();
+                          }
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(e.key, style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                                    Text("${percent.toStringAsFixed(1)}%", style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                LinearProgressIndicator(
+                                  value: percent / 100.0,
+                                  backgroundColor: Colors.white24,
+                                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryLight),
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
                       ],
+                    ),
+                  ),
+                GestureDetector(
+                  onTap: () async {
+                    final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => PostDetailScreen(post: post)));
+                    if (result == true) _loadFeed();
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryLight]),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: const Center(
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.volunteer_activism, color: Colors.white),
+                          SizedBox(width: 8),
+                          Text("TAP TO VOLUNTEER", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        ],
+                      ),
                     ),
                   ),
                 ),

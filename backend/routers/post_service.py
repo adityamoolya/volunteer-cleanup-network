@@ -33,7 +33,7 @@ async def get_feed(db: AsyncSession, skip: int = 0, limit: int = 20):
         .where(models.Post.status != models.TaskStatus.COMPLETED)
         .where(models.Post.status != models.TaskStatus.CANCELLED)
         .where(User.is_banned == False)                # exclude banned authors
-        .order_by(desc(models.Post.created_at))
+        .order_by(desc(models.Post.id))
         .offset(skip)
         .limit(limit)
     )

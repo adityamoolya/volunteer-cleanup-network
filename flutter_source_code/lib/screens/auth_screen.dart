@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import '../main.dart';
 import '../services/auth_service.dart';
 import 'home_scaffold.dart';
 
@@ -30,18 +32,29 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  // ─── Get FCM Token for push notifications ───
   Future<String?> _getFcmToken() async {
-    // TODO: Replace with actual Firebase Messaging token retrieval
-    // e.g.: return await FirebaseMessaging.instance.getToken();
-    // For now, returning null — backend accepts it as optional
-    // but on real APK builds this MUST return the real token.
-    return null;
+    try {
+      NotificationSettings settings =
+          await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+      if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+          settings.authorizationStatus == AuthorizationStatus.provisional) {
+        String? token = await FirebaseMessaging.instance.getToken();
+        print("📱 FCM Token: $token");
+        return token;
+      }
+      print("⚠️ Notification permission not granted");
+      return null;
+    } catch (e) {
+      print("❌ FCM token error: $e");
+      return null;
+    }
   }
 
-  // ─── Email/Password Submit ───
   Future<void> _submit() async {
-    // Validation
     if (_isLogin) {
       if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
         setState(() => _errorMessage = "Email and Password are required.");
@@ -68,7 +81,6 @@ class _AuthScreenState extends State<AuthScreen> {
 
     try {
       if (_isLogin) {
-        // Get FCM token for push notifications
         final fcmToken = await _getFcmToken();
         bool success = await _authService.login(email, password, fcmToken);
 
@@ -82,7 +94,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   Text("Login Successful!"),
                 ],
               ),
-              backgroundColor: Color(0xFF2E7D32),
+              backgroundColor: AppColors.primary,
               duration: Duration(seconds: 1),
             ),
           );
@@ -110,13 +122,12 @@ class _AuthScreenState extends State<AuthScreen> {
                   Text("Account created! Please log in."),
                 ],
               ),
-              backgroundColor: Color(0xFF2E7D32),
+              backgroundColor: AppColors.primary,
             ),
           );
 
           _usernameController.clear();
           _passwordController.clear();
-          // Keep email so user can login immediately
         }
       }
     } catch (e) {
@@ -132,7 +143,6 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
-  // ─── GitHub OAuth ───
   Future<void> _loginWithGitHub() async {
     setState(() {
       _isGitHubLoading = true;
@@ -152,7 +162,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 Text("GitHub Login Successful!"),
               ],
             ),
-            backgroundColor: Color(0xFF2E7D32),
+            backgroundColor: AppColors.primary,
             duration: Duration(seconds: 1),
           ),
         );
@@ -178,7 +188,7 @@ class _AuthScreenState extends State<AuthScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -194,13 +204,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     shape: BoxShape.circle,
                     gradient: LinearGradient(
                       colors: [
-                        const Color(0xFF2E7D32).withOpacity(0.3),
-                        const Color(0xFF4CAF50).withOpacity(0.1),
+                        AppColors.primary.withOpacity(0.3),
+                        AppColors.primaryLight.withOpacity(0.1),
                       ],
                     ),
                   ),
                   child: const Icon(Icons.eco,
-                      size: 60, color: Color(0xFF4CAF50)),
+                      size: 60, color: AppColors.primaryLight),
                 ),
                 const SizedBox(height: 24),
                 const Text(
@@ -209,7 +219,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   style: TextStyle(
                     fontSize: 36,
                     fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     letterSpacing: 2,
                   ),
                 ),
@@ -219,7 +229,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     fontSize: 16,
-                    color: Colors.white54,
+                    color: AppColors.textSecondary,
                   ),
                 ),
                 const SizedBox(height: 48),
@@ -230,23 +240,23 @@ class _AuthScreenState extends State<AuthScreen> {
                     padding: const EdgeInsets.all(14),
                     margin: const EdgeInsets.only(bottom: 24),
                     decoration: BoxDecoration(
-                      color: Colors.red.withOpacity(0.1),
+                      color: AppColors.danger.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.danger.withOpacity(0.3)),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red),
+                        const Icon(Icons.error_outline, color: AppColors.danger),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(color: Colors.red),
+                            style: const TextStyle(color: AppColors.danger),
                           ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close,
-                              color: Colors.red, size: 18),
+                              color: AppColors.danger, size: 18),
                           onPressed: () =>
                               setState(() => _errorMessage = null),
                         ),
@@ -258,50 +268,50 @@ class _AuthScreenState extends State<AuthScreen> {
                 if (!_isLogin) ...[
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
+                      color: AppColors.surface,
                       borderRadius: BorderRadius.circular(16),
                     ),
                     child: TextField(
                       controller: _usernameController,
-                      style: const TextStyle(color: Colors.white),
+                      style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: "Username",
-                        labelStyle: const TextStyle(color: Colors.white54),
+                        labelStyle: const TextStyle(color: AppColors.textSecondary),
                         prefixIcon: const Icon(Icons.person_outline,
-                            color: Colors.white54),
+                            color: AppColors.textSecondary),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
-                        fillColor: const Color(0xFF1E1E1E),
+                        fillColor: AppColors.surface,
                       ),
                     ),
                   ),
                   const SizedBox(height: 16),
                 ],
 
-                // Email Field (Always shown — used for login AND register)
+                // Email Field
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: TextField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: "Email Address",
-                      labelStyle: const TextStyle(color: Colors.white54),
+                      labelStyle: const TextStyle(color: AppColors.textSecondary),
                       prefixIcon: const Icon(Icons.email_outlined,
-                          color: Colors.white54),
+                          color: AppColors.textSecondary),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: const Color(0xFF1E1E1E),
+                      fillColor: AppColors.surface,
                     ),
                   ),
                 ),
@@ -310,24 +320,24 @@ class _AuthScreenState extends State<AuthScreen> {
                 // Password Field
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: TextField(
                     controller: _passwordController,
                     obscureText: _obscurePassword,
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: "Password",
-                      labelStyle: const TextStyle(color: Colors.white54),
+                      labelStyle: const TextStyle(color: AppColors.textSecondary),
                       prefixIcon: const Icon(Icons.lock_outline,
-                          color: Colors.white54),
+                          color: AppColors.textSecondary),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
                               ? Icons.visibility_off
                               : Icons.visibility,
-                          color: Colors.white54,
+                          color: AppColors.textSecondary,
                         ),
                         onPressed: () =>
                             setState(() => _obscurePassword = !_obscurePassword),
@@ -337,7 +347,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
-                      fillColor: const Color(0xFF1E1E1E),
+                      fillColor: AppColors.surface,
                     ),
                   ),
                 ),
@@ -350,7 +360,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     gradient: _isLoading
                         ? null
                         : const LinearGradient(
-                            colors: [Color(0xFF2E7D32), Color(0xFF4CAF50)],
+                            colors: [AppColors.primary, AppColors.primaryLight],
                           ),
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: _isLoading
@@ -358,7 +368,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         : [
                             BoxShadow(
                               color:
-                                  const Color(0xFF2E7D32).withOpacity(0.3),
+                                  AppColors.primary.withOpacity(0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -369,7 +379,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      disabledBackgroundColor: const Color(0xFF1E1E1E),
+                      disabledBackgroundColor: AppColors.surface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -401,14 +411,14 @@ class _AuthScreenState extends State<AuthScreen> {
                   children: [
                     Expanded(
                         child: Divider(
-                            color: Colors.white.withOpacity(0.15),
+                            color: AppColors.border.withOpacity(0.5),
                             thickness: 1)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         "OR",
                         style: TextStyle(
-                          color: Colors.white.withOpacity(0.4),
+                          color: AppColors.textTertiary,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
                           letterSpacing: 1,
@@ -417,7 +427,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     Expanded(
                         child: Divider(
-                            color: Colors.white.withOpacity(0.15),
+                            color: AppColors.border.withOpacity(0.5),
                             thickness: 1)),
                   ],
                 ),
@@ -427,10 +437,10 @@ class _AuthScreenState extends State<AuthScreen> {
                 Container(
                   height: 56,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E1E),
+                    color: AppColors.surface,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: Colors.white.withOpacity(0.1),
+                      color: AppColors.border.withOpacity(0.5),
                     ),
                   ),
                   child: ElevatedButton.icon(
@@ -439,7 +449,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
-                      disabledBackgroundColor: const Color(0xFF1E1E1E),
+                      disabledBackgroundColor: AppColors.surface,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                       ),
@@ -453,13 +463,13 @@ class _AuthScreenState extends State<AuthScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Icon(Icons.code, color: Colors.white, size: 22),
+                        : const Icon(Icons.code, color: AppColors.textPrimary, size: 22),
                     label: Text(
                       _isGitHubLoading
                           ? "Connecting..."
                           : "Continue with GitHub",
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontWeight: FontWeight.w600,
                         fontSize: 15,
                       ),
@@ -480,12 +490,12 @@ class _AuthScreenState extends State<AuthScreen> {
                     text: TextSpan(
                       text:
                           _isLogin ? "New here? " : "Already have an account? ",
-                      style: const TextStyle(color: Colors.white54),
+                      style: const TextStyle(color: AppColors.textSecondary),
                       children: [
                         TextSpan(
                           text: _isLogin ? "Register now" : "Log in",
                           style: const TextStyle(
-                            color: Color(0xFF4CAF50),
+                            color: AppColors.primaryLight,
                             fontWeight: FontWeight.bold,
                           ),
                         ),

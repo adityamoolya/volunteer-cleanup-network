@@ -53,7 +53,7 @@ def send_notification(token: str, title: str, body: str, data: dict = None) -> b
     """
 
 
-    if USE_MOCK_NOTIFICATION: 
+    if USE_MOCK_NOTIFICATION and USE_MOCK_NOTIFICATION.lower() in ("true", "1"):
         logger.warning("USING MOCK NOTIFICATION REQUEST")
         return True
     if not token:
@@ -69,13 +69,13 @@ def send_notification(token: str, title: str, body: str, data: dict = None) -> b
     try:
         response = messaging.send(message)
         logger.info(f"[FCM] Sent OK → {response}")
-        return True
+        return {"ok": True, "firebase_response": response}
     except messaging.UnregisteredError:
         logger.warning(f"[FCM] Token unregistered (stale) — consider removing from DB: {token[:20]}...")
-        return "unregistered"
+        return {"ok": False, "error": "unregistered"}
     except Exception as e:
         logger.error(f"[FCM] Failed to send notification: {e}")
-        return False
+        return {"ok": False, "error": str(e)}
 
 import asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,7 +93,7 @@ async def notify_user_async(db: AsyncSession, user, title: str, body: str, data:
         lambda: send_notification(token, title, body, data)
     )
     
-    if result == "unregistered":
+    if isinstance(result, dict) and result.get("error") == "unregistered":
         user.fcm_token = None
         db.add(user)
         try:
@@ -102,4 +102,4 @@ async def notify_user_async(db: AsyncSession, user, title: str, body: str, data:
             await db.rollback()
         return False
         
-    return bool(result)
+    return isinstance(result, dict) and result.get("ok", False)

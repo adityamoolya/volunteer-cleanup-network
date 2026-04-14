@@ -98,6 +98,14 @@ async def get_my_stats(
     my_requests = (await db.execute(my_requests_q)).scalars().all()
     my_contribs = (await db.execute(my_contribs_q)).scalars().all()
 
+    my_rewards_q = (
+        select(models.RedemptionRequest)
+        .options(selectinload(models.RedemptionRequest.reward))
+        .where(models.RedemptionRequest.user_id == current_user.id)
+        .order_by(desc(models.RedemptionRequest.created_at))
+    )
+    my_rewards = (await db.execute(my_rewards_q)).scalars().all()
+
     return {
         # --- FIX: FILTER SENSITIVE DATA ---
         # This converts the DB object to the 'UserPublic' schema 
@@ -110,7 +118,8 @@ async def get_my_stats(
             "points": current_user.points
         },
         "my_requests": my_requests,
-        "my_contributions": my_contribs
+        "my_contributions": my_contribs,
+        "my_rewards": my_rewards
     }
 
 # --- 3. LEADERBOARD ---
@@ -146,3 +155,96 @@ async def delete_user(
     await db.commit()
 
     return {"message": "User deleted successfully"}
+
+
+# --- 5. TEST NOTIFICATIONS ---
+
+from pydantic import BaseModel
+from typing import Optional
+
+class TestNotificationRequest(BaseModel):
+    device_token: str
+    title: Optional[str] = "🧪 Test Notification"
+    body: Optional[str] = "If you see this, notifications work!"
+
+
+# 5a. RAW TEST — just paste any FCM token, no login needed
+@router.post("/ping-device", tags=["Debug"])
+async def ping_device(payload: TestNotificationRequest):
+    """
+    Send a notification to ANY device by its FCM token.
+    
+    How to use:
+    1. Open the Flutter app → login → check console logs for "📱 FCM Token: ..."
+    2. Copy that token
+    3. Paste it here and hit Execute
+    4. Your phone should buzz 🎉
+    """
+    from fastapi import HTTPException
+    from routers.notification_service import send_notification
+
+    result = send_notification(
+        token=payload.device_token,
+        title=payload.title,
+        body=payload.body,
+        data={"type": "test"}
+    )
+
+    if isinstance(result, dict) and result.get("error") == "unregistered":
+        raise HTTPException(status_code=410, detail="Token is invalid/expired. Get a fresh one by re-logging in the app.")
+    
+    if not isinstance(result, dict) or not result.get("ok"):
+        error_detail = result.get("error", "Unknown error") if isinstance(result, dict) else str(result)
+        raise HTTPException(status_code=500, detail=f"Firebase failed: {error_detail}")
+
+    return {
+        "message": "✅ Notification sent!",
+        "firebase_response": result.get("firebase_response"),
+        "token_preview": payload.device_token[:25] + "..."
+    }
+
+
+# 5b. AUTH TEST — sends to the currently logged-in user's stored token
+@router.post("/test-notification")
+async def test_notification(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from fastapi import HTTPException
+    from routers.notification_service import send_notification
+
+    token = getattr(current_user, "fcm_token", None)
+    
+    if not token:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"No FCM token stored for user '{current_user.username}'. "
+                   f"Make sure you logged in from the mobile app (not web/Swagger)."
+        )
+
+    result = send_notification(
+        token=token,
+        title="🧪 Test Notification",
+        body=f"Hey @{current_user.username}, notifications are working!",
+        data={"type": "test"}
+    )
+
+    if isinstance(result, dict) and result.get("error") == "unregistered":
+        current_user.fcm_token = None
+        db.add(current_user)
+        await db.commit()
+        raise HTTPException(
+            status_code=410,
+            detail="FCM token is stale/expired. Please re-login from the app to get a fresh token."
+        )
+    
+    if not isinstance(result, dict) or not result.get("ok"):
+        error_detail = result.get("error", "Unknown error") if isinstance(result, dict) else str(result)
+        raise HTTPException(status_code=500, detail=f"Firebase failed: {error_detail}")
+
+    return {
+        "message": "✅ Test notification sent!",
+        "firebase_response": result.get("firebase_response"),
+        "fcm_token_prefix": token[:20] + "...",
+        "username": current_user.username
+    }

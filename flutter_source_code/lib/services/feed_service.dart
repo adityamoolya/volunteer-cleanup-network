@@ -146,7 +146,7 @@ class FeedService {
 
   // ==================== PHASE 2: START WORK (VOLUNTEER CLOCK IN) ====================
 
-  Future<bool> startWork(int postId, String startImageUrl) async {
+  Future<bool> startWork(String postId, String startImageUrl) async {
     try {
       print("⏰ Clocking in to post $postId...");
       print("   Start image: $startImageUrl");
@@ -181,7 +181,7 @@ class FeedService {
 
   // ==================== PHASE 3: SUBMIT PROOF (VOLUNTEER CLOCK OUT) ====================
 
-  Future<bool> submitCleanupProof(int postId, String endImageUrl) async {
+  Future<bool> submitCleanupProof(String postId, String endImageUrl) async {
     try {
       print("✅ Submitting cleanup proof for post $postId...");
       print("   End image: $endImageUrl");
@@ -218,7 +218,7 @@ class FeedService {
 
   // ==================== PHASE 4: APPROVE REQUEST (AUTHOR CLOSES MISSION) ====================
 
-  Future<bool> approveRequest(int postId, {int finalPoints = 50}) async {
+  Future<bool> approveRequest(String postId, {int finalPoints = 50}) async {
     try {
       print("👍 Approving post $postId with $finalPoints points...");
 
@@ -254,7 +254,7 @@ class FeedService {
 
   // ==================== COMMENTS ====================
 
-  Future<bool> postComment(int postId, String content) async {
+  Future<bool> postComment(String postId, String content) async {
     try {
       print("💬 Posting comment to post $postId...");
 
@@ -280,7 +280,7 @@ class FeedService {
   // ==================== AUTHOR POST UPDATE ====================
 
   Future<bool> updatePost(
-      int postId, {
+      String postId, {
         String? predictedClass,
         int? points,
         String? caption,
@@ -317,6 +317,68 @@ class FeedService {
     } catch (e) {
       print("❌ Unexpected update error: $e");
       throw "Failed to update post: $e";
+    }
+  }
+
+  // ==================== AUTHOR POST DELETE / CANCEL ====================
+
+  Future<bool> deletePost(String postId) async {
+    try {
+      print("🗑️ Deleting post $postId...");
+      final response = await _dio.delete('/posts/$postId');
+      if (response.statusCode == 204) return true;
+      return false;
+    } catch (e) {
+      throw "Failed to delete post: $e";
+    }
+  }
+
+  Future<bool> cancelPost(String postId) async {
+    try {
+      print("🚫 Cancelling post $postId...");
+      final response = await _dio.post('/posts/$postId/cancel');
+      if (response.statusCode == 200) return true;
+      return false;
+    } catch (e) {
+      throw "Failed to cancel post: $e";
+    }
+  }
+
+  // ==================== GET COMMENTS ====================
+
+  Future<List<Map<String, dynamic>>> getComments(String postId) async {
+    try {
+      print("💬 Fetching comments for post $postId...");
+      final response = await _dio.get(
+        '/comments/',
+        queryParameters: {'post_id': postId},
+      );
+
+      if (response.statusCode == 200) {
+        return List<Map<String, dynamic>>.from(response.data);
+      }
+      return [];
+    } catch (e) {
+      print("❌ Get comments error: $e");
+      return [];
+    }
+  }
+
+  // ==================== DELETE COMMENT ====================
+
+  Future<bool> deleteComment(String commentId) async {
+    try {
+      print("🗑️ Deleting comment $commentId...");
+      final response = await _dio.delete('/comments/$commentId');
+      if (response.statusCode == 204) return true;
+      return false;
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 403) {
+        throw "Not authorized to delete this comment";
+      }
+      throw "Failed to delete comment: ${e.message}";
+    } catch (e) {
+      throw "Failed to delete comment: $e";
     }
   }
 }

@@ -2,13 +2,41 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
 import 'services/auth_interceptor.dart';
 
+/// Background message handler (must be top-level function)
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  // Background notifications are handled automatically by the system tray
+}
+
 /// Global navigator key so we can navigate from anywhere (e.g. force-logout)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+// ─── Refined Color Palette ───
+class AppColors {
+  static const Color background = Color(0xFF0D1117);
+  static const Color surface = Color(0xFF161B22);
+  static const Color surfaceLight = Color(0xFF1C2333);
+  static const Color primary = Color(0xFF059669);       // emerald-600
+  static const Color primaryLight = Color(0xFF10B981);  // emerald-500
+  static const Color accent = Color(0xFF34D399);         // emerald-400
+  static const Color amber = Color(0xFFF59E0B);
+  static const Color amberLight = Color(0xFFFBBF24);
+  static const Color textPrimary = Color(0xFFE6EDF3);
+  static const Color textSecondary = Color(0xFF8B949E);
+  static const Color textTertiary = Color(0xFF484F58);
+  static const Color border = Color(0xFF30363D);
+  static const Color danger = Color(0xFFDA3633);
+  static const Color info = Color(0xFF58A6FF);
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,12 +47,20 @@ Future<void> main() async {
     print("Error loading .env: $e");
   }
 
-  // Initialize Supabase for GitHub OAuth
-  // TODO: Replace the anonKey below with your actual Supabase anon key
-  //       from https://supabase.com/dashboard → Project Settings → API → anon public
+  // Initialize Firebase
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
+  // Show notifications when app is in foreground (Android)
+  await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
   await Supabase.initialize(
     url: 'https://avfdjcpgtndbftdajdwk.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2ZmRqY3BndG5kYmZ0ZGFqZHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MTg2MjEsImV4cCI6MjA5MDI5NDYyMX0.meupaW-m5KX0Juqh-g13Kzc5UdNGJeXJPx9yT_6pNB8', // ← Replace this!
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImF2ZmRqY3BndG5kYmZ0ZGFqZHdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ3MTg2MjEsImV4cCI6MjA5MDI5NDYyMX0.meupaW-m5KX0Juqh-g13Kzc5UdNGJeXJPx9yT_6pNB8',
   );
 
   runApp(const MyApp());
@@ -44,7 +80,6 @@ class _MyAppState extends State<MyApp> {
   void initState() {
     super.initState();
 
-    // Listen for force-logout events from the auth interceptor
     _logoutSubscription = AuthInterceptor.onForceLogout.stream.listen((_) {
       print("🔒 Force logout received — navigating to AuthScreen");
       navigatorKey.currentState?.pushAndRemoveUntil(
@@ -68,30 +103,36 @@ class _MyAppState extends State<MyApp> {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        primaryColor: const Color(0xFF2E7D32),
+        scaffoldBackgroundColor: AppColors.background,
+        primaryColor: AppColors.primary,
+        textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme),
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF2E7D32),
-          secondary: Color(0xFF4CAF50),
-          surface: Color(0xFF1E1E1E),
+          primary: AppColors.primary,
+          secondary: AppColors.primaryLight,
+          surface: AppColors.surface,
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E1E1E),
-          foregroundColor: Colors.white,
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.surface,
+          foregroundColor: AppColors.textPrimary,
           elevation: 0,
+          titleTextStyle: GoogleFonts.inter(
+            color: AppColors.textPrimary,
+            fontSize: 18,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-          backgroundColor: Color(0xFF1E1E1E),
-          selectedItemColor: Color(0xFF4CAF50),
-          unselectedItemColor: Colors.white54,
+          backgroundColor: AppColors.surface,
+          selectedItemColor: AppColors.primaryLight,
+          unselectedItemColor: AppColors.textSecondary,
         ),
         floatingActionButtonTheme: const FloatingActionButtonThemeData(
-          backgroundColor: Color(0xFF2E7D32),
+          backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF2E7D32),
+            backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(12),
@@ -100,29 +141,29 @@ class _MyAppState extends State<MyApp> {
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: const Color(0xFF1E1E1E),
+          fillColor: AppColors.surface,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide.none,
           ),
-          labelStyle: const TextStyle(color: Colors.white54),
-          hintStyle: const TextStyle(color: Colors.white24),
+          labelStyle: const TextStyle(color: AppColors.textSecondary),
+          hintStyle: const TextStyle(color: AppColors.textTertiary),
         ),
         cardTheme: CardThemeData(
-          color: const Color(0xFF1E1E1E),
+          color: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
         ),
         snackBarTheme: SnackBarThemeData(
-          backgroundColor: const Color(0xFF1E1E1E),
-          contentTextStyle: const TextStyle(color: Colors.white),
+          backgroundColor: AppColors.surface,
+          contentTextStyle: const TextStyle(color: AppColors.textPrimary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
         ),
         dialogTheme: DialogThemeData(
-          backgroundColor: const Color(0xFF1E1E1E),
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),

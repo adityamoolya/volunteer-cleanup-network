@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../main.dart';
 import '../services/user_service.dart';
 import '../models/profile_model.dart';
 import '../models/post_model.dart';
@@ -77,17 +78,17 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.background,
       appBar: AppBar(
         title: const Row(
           children: [
-            Icon(Icons.assignment, color: Color(0xFF4CAF50)),
+            Icon(Icons.assignment, color: AppColors.primaryLight),
             SizedBox(width: 12),
             Text("Mission Control", style: TextStyle(fontWeight: FontWeight.bold)),
           ],
         ),
-        backgroundColor: const Color(0xFF1E1E1E),
-        foregroundColor: Colors.white,
+        backgroundColor: AppColors.surface,
+        foregroundColor: AppColors.textPrimary,
         elevation: 0,
         actions: [
           IconButton(
@@ -98,10 +99,10 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
         ],
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: const Color(0xFF4CAF50),
+          indicatorColor: AppColors.primaryLight,
           indicatorWeight: 3,
-          labelColor: const Color(0xFF4CAF50),
-          unselectedLabelColor: Colors.white54,
+          labelColor: AppColors.primaryLight,
+          unselectedLabelColor: AppColors.textSecondary,
           labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
           tabs: [
             Tab(
@@ -116,7 +117,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                       margin: const EdgeInsets.only(left: 8),
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4CAF50),
+                        color: AppColors.primaryLight,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
@@ -158,9 +159,9 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF4CAF50)),
+                  CircularProgressIndicator(color: AppColors.primaryLight),
                   SizedBox(height: 16),
-                  Text("Loading missions...", style: TextStyle(color: Colors.white54)),
+                  Text("Loading missions...", style: TextStyle(color: AppColors.textSecondary)),
                 ],
               ),
             )
@@ -169,12 +170,12 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.white38, size: 60),
+                      const Icon(Icons.error_outline, color: AppColors.textTertiary, size: 60),
                       const SizedBox(height: 16),
                       Text(
                         _errorMessage!,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(color: Colors.white54),
+                        style: const TextStyle(color: AppColors.textSecondary),
                       ),
                       const SizedBox(height: 24),
                       ElevatedButton.icon(
@@ -182,7 +183,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                         icon: const Icon(Icons.refresh, color: Colors.white),
                         label: const Text("Retry", style: TextStyle(color: Colors.white)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF2E7D32),
+                          backgroundColor: AppColors.primary,
                         ),
                       ),
                     ],
@@ -207,7 +208,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
             Icon(
               isActiveWork ? Icons.work_off : Icons.inbox,
               size: 80,
-              color: Colors.white24,
+              color: AppColors.textTertiary,
             ),
             const SizedBox(height: 24),
             Text(
@@ -215,7 +216,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                 ? "No active missions"
                 : "No pending reports",
               style: const TextStyle(
-                color: Colors.white,
+                color: AppColors.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
               ),
@@ -226,7 +227,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                 ? "Visit the Discover tab to find\ncleanup opportunities!"
                 : "Tap + on Discover to report\nan environmental issue",
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54),
+              style: const TextStyle(color: AppColors.textSecondary),
             ),
             const SizedBox(height: 24),
             ElevatedButton.icon(
@@ -234,7 +235,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
               icon: const Icon(Icons.refresh, color: Colors.white),
               label: const Text("Refresh", style: TextStyle(color: Colors.white)),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2E7D32),
+                backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
               ),
             ),
@@ -245,8 +246,8 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
 
     return RefreshIndicator(
       onRefresh: _loadData,
-      color: const Color(0xFF4CAF50),
-      backgroundColor: const Color(0xFF1E1E1E),
+      color: AppColors.primaryLight,
+      backgroundColor: AppColors.surface,
       child: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: posts.length,
@@ -262,12 +263,12 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: post.isPendingApproval 
             ? Colors.orange.withAlpha(127)
-            : Colors.white.withAlpha(25),
+            : AppColors.border.withAlpha(50),
         ),
       ),
       child: Material(
@@ -299,22 +300,22 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                     placeholder: (context, url) => Container(
                       width: 70,
                       height: 70,
-                      color: const Color(0xFF2A2A2A),
+                      color: AppColors.surfaceLight,
                       child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF4CAF50)),
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight),
                       ),
                     ),
                     errorWidget: (context, url, error) => Container(
                       width: 70,
                       height: 70,
-                      color: const Color(0xFF2A2A2A),
-                      child: const Icon(Icons.broken_image, color: Colors.white38),
+                      color: AppColors.surfaceLight,
+                      child: const Icon(Icons.broken_image, color: AppColors.textTertiary),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 
-                // Details - Flexible to prevent overflow
+                // Details
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -323,7 +324,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                       Text(
                         post.caption ?? "Mission #${post.id}",
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -350,7 +351,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                       ),
                       const SizedBox(height: 6),
                       
-                      // Points & Action Hint - Using Wrap to prevent overflow
+                      // Points & Action Hint
                       Wrap(
                         spacing: 6,
                         runSpacing: 4,
@@ -358,13 +359,13 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF2E7D32).withAlpha(50),
+                              color: AppColors.primary.withAlpha(50),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               "${post.points} pts",
                               style: const TextStyle(
-                                color: Color(0xFF4CAF50),
+                                color: AppColors.primaryLight,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 11,
                               ),
@@ -386,12 +387,12 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                               decoration: BoxDecoration(
-                                color: Colors.blue.withAlpha(50),
+                                color: AppColors.info.withAlpha(50),
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: const Text(
                                 "Submit Proof",
-                                style: TextStyle(color: Colors.blue, fontSize: 11),
+                                style: TextStyle(color: AppColors.info, fontSize: 11),
                               ),
                             ),
                         ],
@@ -401,7 +402,7 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                 ),
                 
                 // Arrow
-                const Icon(Icons.chevron_right, color: Colors.white38, size: 20),
+                const Icon(Icons.chevron_right, color: AppColors.textTertiary, size: 20),
               ],
             ),
           ),

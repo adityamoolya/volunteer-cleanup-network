@@ -19,7 +19,7 @@ class UserPublic {
 // ==================== COMMENT MODEL ====================
 
 class Comment {
-  final int id;
+  final String id;
   final String content;
   final UserPublic? author;
   final DateTime createdAt;
@@ -49,7 +49,7 @@ class Comment {
 
 class Post {
   // Basic Info (Phase 1: Author Creates)
-  final int id;
+  final String id;
   final String imageUrl;
   final String imagePublicId;
   final String? caption;
@@ -61,11 +61,12 @@ class Post {
 
   // ML Classification Results
   final String? predictedClass;
+  final Map<String, dynamic>? allProbabilities;
   final int points;
   final int? verifiedPoints; // ML verification of volunteer's "before" photo
 
   // Phase 2: Volunteer Clock In
-  final int? volunteerId;
+  final String? volunteerId;
   final UserPublic? volunteer;
   final String? startImageUrl; // "Before" photo
   final DateTime? volunteerStartTimestamp;
@@ -77,7 +78,7 @@ class Post {
 
   // Phase 4: Author Approval (Legacy field)
   final String? proofImageUrl;
-  final int? resolvedById;
+  final String? resolvedById;
   final UserPublic? resolvedBy;
 
   // Social Features
@@ -95,6 +96,7 @@ class Post {
     this.author,
     required this.createdAt,
     this.predictedClass,
+    this.allProbabilities,
     required this.points,
     this.verifiedPoints,
     this.volunteerId,
@@ -130,6 +132,7 @@ class Post {
 
       // ML Results
       predictedClass: json['predicted_class'],
+      allProbabilities: json['all_probabilities'],
       points: json['points'] ?? 0,
       verifiedPoints: json['verified_points'],
 
