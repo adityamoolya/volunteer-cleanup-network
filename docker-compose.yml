@@ -1,0 +1,24 @@
+services:
+  backend:
+    build: ./backend
+    container_name: vcn_backend
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env
+    networks:
+      - vcn_network
+
+  ml:
+    build: ./trash_classifier
+    container_name: vcn_ml
+    restart: always
+    ports:
+      - "6969:6969"
+    networks:
+      - vcn_network
+
+networks:
+  vcn_network:
+    driver: bridge
