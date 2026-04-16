@@ -1,6 +1,7 @@
 // lib/screens/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../main.dart';
 import '../services/user_service.dart';
 import '../services/auth_service.dart';
@@ -713,6 +714,47 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       childCount: completedMissions.length,
                     ),
                   ),
+
+            // ═══════════ ABOUT ═══════════
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 40, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(height: 1, color: AppColors.border.withOpacity(0.3)),
+                    const SizedBox(height: 24),
+                    const Text(
+                      "ABOUT",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.textTertiary,
+                        fontSize: 12,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    ListTile(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: AppColors.border.withOpacity(0.3)),
+                      ),
+                      tileColor: AppColors.surface,
+                      leading: const Icon(Icons.code, color: AppColors.primaryLight),
+                      title: const Text("Source code here", style: TextStyle(color: AppColors.textPrimary)),
+                      subtitle: const Text("View project on GitHub", style: TextStyle(color: AppColors.textTertiary)),
+                      trailing: const Icon(Icons.open_in_new, color: AppColors.textTertiary, size: 18),
+                      onTap: () async {
+                        final url = Uri.parse('https://github.com/adityamoolya/volunteer-cleanup-network/');
+                        if (!await launchUrl(url)) {
+                          debugPrint('Could not launch \$url');
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             // ═══════════ DANGER ZONE ═══════════
             SliverToBoxAdapter(

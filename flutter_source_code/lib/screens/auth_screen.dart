@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 import '../main.dart';
 import '../services/auth_service.dart';
 import 'home_scaffold.dart';
@@ -19,6 +21,8 @@ class _AuthScreenState extends State<AuthScreen> {
   bool _isGitHubLoading = false;
   String? _errorMessage;
   bool _obscurePassword = true;
+  bool _acceptedTerms = false;
+  bool _acceptedPrivacy = false;
 
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
@@ -32,14 +36,32 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
+  Future<void> _launchTandC() async {
+    final url = Uri.parse('https://adityamoolya.duckdns.org/TandC');
+    if (!await launchUrl(url)) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open link')));
+      }
+    }
+  }
+
+  Future<void> _launchPP() async {
+    final url = Uri.parse('https://adityamoolya.duckdns.org/pp');
+    if (!await launchUrl(url)) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Could not open link')));
+      }
+    }
+  }
+
   Future<String?> _getFcmToken() async {
     try {
-      NotificationSettings settings =
-          await FirebaseMessaging.instance.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-      );
+      NotificationSettings settings = await FirebaseMessaging.instance
+          .requestPermission(alert: true, badge: true, sound: true);
       if (settings.authorizationStatus == AuthorizationStatus.authorized ||
           settings.authorizationStatus == AuthorizationStatus.provisional) {
         String? token = await FirebaseMessaging.instance.getToken();
@@ -54,10 +76,25 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _requestLocationPermission() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+    } catch (e) {
+      print("Location permission error: $e");
+    }
+  }
+
   Future<void> _submit() async {
     if (_isLogin) {
       if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
         setState(() => _errorMessage = "Email and Password are required.");
+        return;
+      }
+      if (!_emailController.text.contains('@')) {
+        setState(() => _errorMessage = "Please log in using your email address, not your username.");
         return;
       }
     } else {
@@ -65,9 +102,18 @@ class _AuthScreenState extends State<AuthScreen> {
           _emailController.text.isEmpty ||
           _passwordController.text.isEmpty) {
         setState(
-            () => _errorMessage = "Username, Email and Password are required.");
+          () => _errorMessage = "Username, Email and Password are required.",
+        );
         return;
       }
+    }
+
+    if (!_isLogin && (!_acceptedTerms || !_acceptedPrivacy)) {
+      setState(
+        () => _errorMessage =
+            "You must accept both Privacy Policy and Terms & Conditions.",
+      );
+      return;
     }
 
     setState(() {
@@ -85,6 +131,8 @@ class _AuthScreenState extends State<AuthScreen> {
         bool success = await _authService.login(email, password, fcmToken);
 
         if (success && mounted) {
+          await _requestLocationPermission();
+
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Row(
@@ -144,6 +192,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Future<void> _loginWithGitHub() async {
+    if (!_isLogin && (!_acceptedTerms || !_acceptedPrivacy)) {
+      setState(
+        () => _errorMessage =
+            "You must accept both Privacy Policy and Terms & Conditions.",
+      );
+      return;
+    }
+
     setState(() {
       _isGitHubLoading = true;
       _errorMessage = null;
@@ -154,6 +210,8 @@ class _AuthScreenState extends State<AuthScreen> {
       bool success = await _authService.loginWithGitHub(fcmToken);
 
       if (success && mounted) {
+        await _requestLocationPermission();
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Row(
@@ -210,12 +268,15 @@ class _AuthScreenState extends State<AuthScreen> {
                       ],
                     ),
                   ),
-                  child: const Icon(Icons.eco,
-                      size: 60, color: AppColors.primaryLight),
+                  child: const Icon(
+                    Icons.eco,
+                    size: 60,
+                    color: AppColors.primaryLight,
+                  ),
                 ),
                 const SizedBox(height: 24),
                 const Text(
-                  "ReLeaf",
+                  "VCN",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 36,
@@ -224,7 +285,17 @@ class _AuthScreenState extends State<AuthScreen> {
                     letterSpacing: 2,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 4),
+                const Text(
+                  "Volunteer Cleanup Network",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textPrimary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 16),
                 Text(
                   _isLogin ? "Welcome Back, Hero" : "Join the Task Force",
                   textAlign: TextAlign.center,
@@ -243,11 +314,16 @@ class _AuthScreenState extends State<AuthScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.danger.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.danger.withOpacity(0.3)),
+                      border: Border.all(
+                        color: AppColors.danger.withOpacity(0.3),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.error_outline, color: AppColors.danger),
+                        const Icon(
+                          Icons.error_outline,
+                          color: AppColors.danger,
+                        ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
@@ -256,10 +332,12 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close,
-                              color: AppColors.danger, size: 18),
-                          onPressed: () =>
-                              setState(() => _errorMessage = null),
+                          icon: const Icon(
+                            Icons.close,
+                            color: AppColors.danger,
+                            size: 18,
+                          ),
+                          onPressed: () => setState(() => _errorMessage = null),
                         ),
                       ],
                     ),
@@ -277,9 +355,13 @@ class _AuthScreenState extends State<AuthScreen> {
                       style: const TextStyle(color: AppColors.textPrimary),
                       decoration: InputDecoration(
                         labelText: "Username",
-                        labelStyle: const TextStyle(color: AppColors.textSecondary),
-                        prefixIcon: const Icon(Icons.person_outline,
-                            color: AppColors.textSecondary),
+                        labelStyle: const TextStyle(
+                          color: AppColors.textSecondary,
+                        ),
+                        prefixIcon: const Icon(
+                          Icons.person_outline,
+                          color: AppColors.textSecondary,
+                        ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide.none,
@@ -304,9 +386,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: "Email Address",
-                      labelStyle: const TextStyle(color: AppColors.textSecondary),
-                      prefixIcon: const Icon(Icons.email_outlined,
-                          color: AppColors.textSecondary),
+                      labelStyle: const TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.email_outlined,
+                        color: AppColors.textSecondary,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide.none,
@@ -330,9 +416,13 @@ class _AuthScreenState extends State<AuthScreen> {
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: InputDecoration(
                       labelText: "Password",
-                      labelStyle: const TextStyle(color: AppColors.textSecondary),
-                      prefixIcon: const Icon(Icons.lock_outline,
-                          color: AppColors.textSecondary),
+                      labelStyle: const TextStyle(
+                        color: AppColors.textSecondary,
+                      ),
+                      prefixIcon: const Icon(
+                        Icons.lock_outline,
+                        color: AppColors.textSecondary,
+                      ),
                       suffixIcon: IconButton(
                         icon: Icon(
                           _obscurePassword
@@ -340,8 +430,9 @@ class _AuthScreenState extends State<AuthScreen> {
                               : Icons.visibility,
                           color: AppColors.textSecondary,
                         ),
-                        onPressed: () =>
-                            setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                          () => _obscurePassword = !_obscurePassword,
+                        ),
                       ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -352,7 +443,62 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 16),
+
+                // Checkboxes (Registration Only)
+                if (!_isLogin) ...[
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _acceptedPrivacy,
+                        onChanged: (val) {
+                          setState(() => _acceptedPrivacy = val ?? false);
+                        },
+                        activeColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.textSecondary),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _launchPP,
+                          child: const Text(
+                            "I accept the Privacy Policy",
+                            style: TextStyle(
+                              color: AppColors.primaryLight,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      Checkbox(
+                        value: _acceptedTerms,
+                        onChanged: (val) {
+                          setState(() => _acceptedTerms = val ?? false);
+                        },
+                        activeColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.textSecondary),
+                      ),
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: _launchTandC,
+                          child: const Text(
+                            "I accept the Terms & Conditions",
+                            style: TextStyle(
+                              color: AppColors.primaryLight,
+                              fontSize: 13,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Submit Button
                 Container(
@@ -368,8 +514,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ? null
                         : [
                             BoxShadow(
-                              color:
-                                  AppColors.primary.withOpacity(0.3),
+                              color: AppColors.primary.withOpacity(0.3),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -411,9 +556,11 @@ class _AuthScreenState extends State<AuthScreen> {
                 Row(
                   children: [
                     Expanded(
-                        child: Divider(
-                            color: AppColors.border.withOpacity(0.5),
-                            thickness: 1)),
+                      child: Divider(
+                        color: AppColors.border.withOpacity(0.5),
+                        thickness: 1,
+                      ),
+                    ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -427,9 +574,11 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                     ),
                     Expanded(
-                        child: Divider(
-                            color: AppColors.border.withOpacity(0.5),
-                            thickness: 1)),
+                      child: Divider(
+                        color: AppColors.border.withOpacity(0.5),
+                        thickness: 1,
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -445,8 +594,9 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                   ),
                   child: ElevatedButton.icon(
-                    onPressed:
-                        (_isGitHubLoading || _isLoading) ? null : _loginWithGitHub,
+                    onPressed: (_isGitHubLoading || _isLoading)
+                        ? null
+                        : _loginWithGitHub,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -464,7 +614,11 @@ class _AuthScreenState extends State<AuthScreen> {
                               strokeWidth: 2,
                             ),
                           )
-                        : const Icon(Icons.code, color: AppColors.textPrimary, size: 22),
+                        : const Icon(
+                            Icons.code,
+                            color: AppColors.textPrimary,
+                            size: 22,
+                          ),
                     label: Text(
                       _isGitHubLoading
                           ? "Connecting..."
@@ -489,8 +643,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   },
                   child: RichText(
                     text: TextSpan(
-                      text:
-                          _isLogin ? "New here? " : "Already have an account? ",
+                      text: _isLogin
+                          ? "New here? "
+                          : "Already have an account? ",
                       style: const TextStyle(color: AppColors.textSecondary),
                       children: [
                         TextSpan(

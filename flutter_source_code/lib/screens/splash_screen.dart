@@ -95,7 +95,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             
             // App name
             const Text(
-              "ReLeaf",
+              "VCN",
               style: TextStyle(
                 fontSize: 36,
                 fontWeight: FontWeight.bold,
@@ -122,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             
             if (!_isBackendUp)
               const Text(
-                "Warming up free-tier servers...\nThis may take a moment",
+                "Connecting to Server \nPowered by AWS cloud infrastructure",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
               ),

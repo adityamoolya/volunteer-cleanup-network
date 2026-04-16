@@ -177,7 +177,7 @@ class FeedScreenState extends State<FeedScreen> {
                 children: [
                   const Icon(Icons.eco, color: AppColors.primaryLight, size: 28),
                   const SizedBox(width: 8),
-                  const Text("ReLeaf", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text("VCN", style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
                   const Spacer(),
                   _isRefreshing
                     ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))

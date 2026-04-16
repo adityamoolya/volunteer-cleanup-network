@@ -10,3 +10,6 @@ output_from_test_script.txt
 # **/trash_classifier.onnx.data
 # **/trash_classifier.onnx
 **/google-services.json
+
+**/flutter_source_code/MaterialIcons-Regular.ttf
+
