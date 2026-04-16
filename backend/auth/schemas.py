@@ -47,6 +47,7 @@ class LogoutRequest(BaseModel):
 class FirebaseAuthRequest(BaseModel):
     firebase_token: str
     device_info: Optional[str] = None
+    fcm_token: Optional[str] = None
 
 
 #Response Schemas 

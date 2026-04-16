@@ -150,7 +150,8 @@ class _AuthScreenState extends State<AuthScreen> {
     });
 
     try {
-      bool success = await _authService.loginWithGitHub();
+      final fcmToken = await _getFcmToken();
+      bool success = await _authService.loginWithGitHub(fcmToken);
 
       if (success && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

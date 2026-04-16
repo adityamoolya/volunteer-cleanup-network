@@ -71,6 +71,9 @@ async def github_oauth(payload: FirebaseAuthRequest, db: AsyncSession = Depends(
     if user.is_banned:
         raise HTTPException(status_code=403, detail="User is banned")
 
+    if payload.fcm_token:
+        user.fcm_token = payload.fcm_token
+
     access_token  = create_access_token(user.id)
     refresh_token = create_refresh_token()
 

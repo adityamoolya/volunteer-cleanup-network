@@ -138,7 +138,7 @@ class AuthService {
   // ─────────────── GITHUB OAUTH (via Supabase) ───────────────
   /// Opens Supabase's GitHub OAuth flow, then exchanges the Supabase JWT
   /// for our backend's access + refresh tokens via POST /oauth/github.
-  Future<bool> loginWithGitHub() async {
+  Future<bool> loginWithGitHub(String? fcmToken) async {
     try {
       final supabase = Supabase.instance.client;
 
@@ -162,7 +162,8 @@ class AuthService {
       final response = await _dio.post(
         '/oauth/github',
         data: {
-          'firebase_token': supabaseJwt, // schema field name from backend
+          'firebase_token': supabaseJwt,
+          'fcm_token': fcmToken,
         },
       );
 
