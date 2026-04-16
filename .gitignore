@@ -7,6 +7,6 @@ env12/
 **/envirorment-el-firebase-adminsdk-fbsvc-9599c2dc71.json
 output_from_server.txt
 output_from_test_script.txt
-**/trash_classifier.onnx.data
-**/trash_classifier.onnx
+# **/trash_classifier.onnx.data
+# **/trash_classifier.onnx
 **/google-services.json
