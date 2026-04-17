@@ -52,7 +52,9 @@ class FeedScreenState extends State<FeedScreen> {
         });
 
         for (final post in _posts) {
-          precacheImage(CachedNetworkImageProvider(post.imageUrl), context);
+          if (post.imageUrl.isNotEmpty) {
+            precacheImage(NetworkImage(post.imageUrl), context);
+          }
         }
       }
     } catch (e) {
@@ -151,8 +153,8 @@ class FeedScreenState extends State<FeedScreen> {
               setState(() {
                 _showingStatsIndex = null;
               });
-              if (index + 1 < _posts.length) {
-                precacheImage(CachedNetworkImageProvider(_posts[index + 1].imageUrl), context);
+              if (index + 1 < _posts.length && _posts[index + 1].imageUrl.isNotEmpty) {
+                precacheImage(NetworkImage(_posts[index + 1].imageUrl), context);
               }
             },
             itemBuilder: (context, index) => _buildPostCard(_posts[index], index),
@@ -202,11 +204,22 @@ class FeedScreenState extends State<FeedScreen> {
       child: Stack(
         fit: StackFit.expand,
         children: [
-          CachedNetworkImage(
-            imageUrl: post.imageUrl,
+          Image.network(
+            post.imageUrl,
             fit: BoxFit.cover,
-            placeholder: (_, __) => Container(color: AppColors.surface, child: const Center(child: CircularProgressIndicator(color: AppColors.primary))),
-            errorWidget: (_, __, ___) => Container(color: AppColors.surface, child: const Icon(Icons.broken_image, color: AppColors.textSecondary, size: 60)),
+            loadingBuilder: (context, child, loadingProgress) {
+              if (loadingProgress == null) return child;
+              return Container(
+                color: AppColors.surface,
+                child: const Center(
+                  child: CircularProgressIndicator(color: AppColors.primary),
+                ),
+              );
+            },
+            errorBuilder: (context, error, stackTrace) => Container(
+              color: AppColors.surface,
+              child: const Icon(Icons.broken_image, color: AppColors.textSecondary, size: 60),
+            ),
           ),
           Container(
             decoration: BoxDecoration(

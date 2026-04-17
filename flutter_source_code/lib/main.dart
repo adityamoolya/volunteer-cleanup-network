@@ -1,3 +1,4 @@
+
 // lib/main.dart
 import 'dart:async';
 import 'package:flutter/material.dart';
@@ -6,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'screens/splash_screen.dart';
 import 'screens/auth_screen.dart';
 import 'services/auth_interceptor.dart';
@@ -19,6 +21,10 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 /// Global navigator key so we can navigate from anywhere (e.g. force-logout)
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+class AppConfig {
+  static String? customBackendUrl;
+}
 
 // ─── Refined Color Palette ───
 class AppColors {
@@ -57,6 +63,13 @@ Future<void> main() async {
     badge: true,
     sound: true,
   );
+
+  try {
+    const storage = FlutterSecureStorage();
+    AppConfig.customBackendUrl = await storage.read(key: 'custom_backend_url');
+  } catch (e) {
+    print("Error loading custom backend url: $e");
+  }
 
   await Supabase.initialize(
     url: 'https://avfdjcpgtndbftdajdwk.supabase.co',
@@ -100,7 +113,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       navigatorKey: navigatorKey,
       title: 'VCN - Volunteer Cleanup Network',
-      debugShowCheckedModeBanner: false,
+      // debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
         scaffoldBackgroundColor: AppColors.background,

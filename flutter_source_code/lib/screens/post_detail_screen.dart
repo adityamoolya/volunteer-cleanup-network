@@ -399,7 +399,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
         ClipRRect(
           borderRadius: BorderRadius.circular(8),
           child: url != null
-            ? CachedNetworkImage(imageUrl: url, height: 90, width: double.infinity, fit: BoxFit.cover)
+            ? Image.network(
+                url,
+                height: 90,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(height: 90, color: AppColors.surfaceLight, child: const Center(child: CircularProgressIndicator()));
+                },
+                errorBuilder: (context, error, stackTrace) => Container(height: 90, color: AppColors.surfaceLight, child: const Icon(Icons.broken_image)),
+              )
             : Container(height: 90, color: AppColors.surfaceLight, child: const Center(child: Text("N/A", style: TextStyle(color: AppColors.textTertiary)))),
         ),
       ],
@@ -456,7 +466,17 @@ class _PostDetailScreenState extends State<PostDetailScreen> {
                   width: double.infinity,
                   child: Stack(
                     children: [
-                      CachedNetworkImage(imageUrl: post.imageUrl, fit: BoxFit.cover, width: double.infinity, height: 300),
+                      Image.network(
+                        post.imageUrl,
+                        fit: BoxFit.cover,
+                        width: double.infinity,
+                        height: 300,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return Container(color: AppColors.surface, child: const Center(child: CircularProgressIndicator()));
+                        },
+                        errorBuilder: (context, error, stackTrace) => Container(color: AppColors.surface, child: const Icon(Icons.broken_image)),
+                      ),
                       Positioned(
                         bottom: 0, left: 0, right: 0,
                         child: Container(

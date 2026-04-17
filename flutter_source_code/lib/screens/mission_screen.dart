@@ -292,20 +292,23 @@ class _MissionsScreenState extends State<MissionsScreen> with SingleTickerProvid
                 // Thumbnail
                 ClipRRect(
                   borderRadius: BorderRadius.circular(12),
-                  child: CachedNetworkImage(
-                    imageUrl: post.imageUrl,
+                  child: Image.network(
+                    post.imageUrl,
                     width: 70,
                     height: 70,
                     fit: BoxFit.cover,
-                    placeholder: (context, url) => Container(
-                      width: 70,
-                      height: 70,
-                      color: AppColors.surfaceLight,
-                      child: const Center(
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight),
-                      ),
-                    ),
-                    errorWidget: (context, url, error) => Container(
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return Container(
+                        width: 70,
+                        height: 70,
+                        color: AppColors.surfaceLight,
+                        child: const Center(
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight),
+                        ),
+                      );
+                    },
+                    errorBuilder: (context, error, stackTrace) => Container(
                       width: 70,
                       height: 70,
                       color: AppColors.surfaceLight,

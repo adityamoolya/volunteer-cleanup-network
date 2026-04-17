@@ -8,12 +8,13 @@
 //   - GitHub OAuth           → Supabase OAuth → POST /oauth/github
 
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../main.dart';
 
 class AuthService {
-  static String get baseUrl => dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "") ?? 'http://10.0.2.2:8080';
+  static String get baseUrl => AppConfig.customBackendUrl ?? dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "").trim() ?? 'http://10.0.2.2:8080';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 

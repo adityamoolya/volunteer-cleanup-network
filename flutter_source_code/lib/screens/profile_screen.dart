@@ -825,15 +825,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: ClipRRect(
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: reward.imageUrl != null && reward.imageUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: reward.imageUrl!,
+                  ? Image.network(
+                      reward.imageUrl!,
                       fit: BoxFit.cover,
                       width: double.infinity,
                       height: 85,
-                      placeholder: (ctx, url) => const Center(
-                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight)),
-                      ),
-                      errorWidget: (ctx, url, err) => Center(
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(
+                          child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryLight)),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) => Center(
                         child: Text(reward.couponIcon, style: const TextStyle(fontSize: 36)),
                       ),
                     )
@@ -937,12 +940,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: ClipRRect(
               borderRadius: BorderRadius.circular(12),
               child: req.reward?.imageUrl != null && req.reward!.imageUrl!.isNotEmpty
-                  ? CachedNetworkImage(
-                      imageUrl: req.reward!.imageUrl!,
+                  ? Image.network(
+                      req.reward!.imageUrl!,
                       fit: BoxFit.cover,
                       width: 48,
                       height: 48,
-                      errorWidget: (ctx, url, err) => Center(
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Container(color: statusColor.withOpacity(0.1));
+                      },
+                      errorBuilder: (context, error, stackTrace) => Center(
                         child: req.reward != null
                             ? Text(req.reward!.couponIcon, style: const TextStyle(fontSize: 24))
                             : Icon(Icons.card_giftcard, color: statusColor),
@@ -1013,12 +1020,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: reward.imageUrl != null && reward.imageUrl!.isNotEmpty
-                    ? CachedNetworkImage(
-                        imageUrl: reward.imageUrl!,
+                    ? Image.network(
+                        reward.imageUrl!,
                         fit: BoxFit.cover,
                         width: 80,
                         height: 80,
-                        errorWidget: (ctx, url, err) => Center(
+                        loadingBuilder: (context, child, loadingProgress) {
+                           if (loadingProgress == null) return child;
+                           return const Center(child: CircularProgressIndicator(color: AppColors.primaryLight));
+                        },
+                        errorBuilder: (context, error, stackTrace) => Center(
                           child: Text(reward.couponIcon, style: const TextStyle(fontSize: 48)),
                         ),
                       )

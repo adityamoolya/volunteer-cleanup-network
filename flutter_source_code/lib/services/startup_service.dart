@@ -6,29 +6,27 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import '../main.dart';
 
 class StartupService {
   final Dio _dio = Dio();
   final _storage = const FlutterSecureStorage();
 
-  static String get backendUrl => dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "") ?? 'http://10.0.2.2:8080';
+  static String get backendUrl =>
+      AppConfig.customBackendUrl ??
+      dotenv.env['BACKEND_API']
+          ?.replaceAll("'", "")
+          .replaceAll('"', "")
+          .trim() ??
+      'https://adityamoolya.duckdns.org';
   // Polls the root endpoint to check if the server is up
   Future<bool> isServerAwake() async {
     try {
       final resp =
           await _dio.get(backendUrl).timeout(const Duration(seconds: 5));
       return resp.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> checkOnlyBackend() async {
-    try {
-      final resp =
-          await _dio.get(backendUrl).timeout(const Duration(seconds: 5));
-      return resp.statusCode == 200;
-    } catch (_) {
+    } catch (e) {
+      print("Server awake check failed: $e, url: $backendUrl");
       return false;
     }
   }

@@ -3,10 +3,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../models/profile_model.dart';
 import '../models/post_model.dart';
+import '../main.dart';
 import 'auth_interceptor.dart';
 
 class UserService {
-  static String get baseUrl => dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "") ?? 'http://10.0.2.2:8080';
+  static String get baseUrl => AppConfig.customBackendUrl ?? dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', "").trim() ?? 'http://10.0.2.2:8080';
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 

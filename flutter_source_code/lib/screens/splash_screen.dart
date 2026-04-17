@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../main.dart';
 import '../services/startup_service.dart';
 import 'auth_screen.dart';
@@ -17,6 +19,68 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late Animation<double> _scaleAnim;
 
   bool _isBackendUp = false;
+  bool _serverUnreachable = false;
+  int _retryCount = 0;
+  int _tapCount = 0;
+
+  Future<void> _showDeveloperSettings() async {
+    final TextEditingController urlController = TextEditingController(
+      text: AppConfig.customBackendUrl ?? dotenv.env['BACKEND_API']?.replaceAll("'", "").replaceAll('"', ""),
+    );
+
+    await showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text("Developer Mode"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Override Backend API URL:", style: TextStyle(fontSize: 14)),
+              const SizedBox(height: 8),
+              TextField(
+                controller: urlController,
+                decoration: const InputDecoration(
+                  hintText: "http://10.0.2.2:8080",
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Cancel"),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                const storage = FlutterSecureStorage();
+                final url = urlController.text.trim();
+
+                if (url.isEmpty) {
+                  await storage.delete(key: 'custom_backend_url');
+                  AppConfig.customBackendUrl = null;
+                } else {
+                  await storage.write(key: 'custom_backend_url', value: url);
+                  AppConfig.customBackendUrl = url;
+                }
+
+                if (mounted) {
+                  setState(() {
+                    _tapCount = 0;
+                    _retryCount = 0;
+                    _serverUnreachable = false;
+                  });
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text("Save & Retry"),
+            )
+          ],
+        );
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -42,15 +106,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   Future<void> _startWarmingUp() async {
     while (!_isBackendUp) {
       if (!_isBackendUp) {
-        _isBackendUp = await _startup.checkOnlyBackend();
+        _isBackendUp = await _startup.isServerAwake();
       }
 
       if (!mounted) return;
 
-      setState(() {});
-
       if (!_isBackendUp) {
+        _retryCount++;
+        if (_retryCount >= 5) {
+          setState(() {
+            _serverUnreachable = true;
+          });
+        }
+        setState(() {});
         await Future.delayed(const Duration(seconds: 3));
+      } else {
+        setState(() {});
       }
     }
 
@@ -75,20 +146,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             // Animated logo
-            ScaleTransition(
-              scale: _scaleAnim,
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(
-                    colors: [
-                      AppColors.primary.withOpacity(0.3),
-                      AppColors.primaryLight.withOpacity(0.1),
-                    ],
+            GestureDetector(
+              onTap: () {
+                _tapCount++;
+                if (_tapCount >= 5) {
+                  _showDeveloperSettings();
+                  _tapCount = 0;
+                }
+              },
+              child: ScaleTransition(
+                scale: _scaleAnim,
+                child: Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColors.primary.withOpacity(0.3),
+                        AppColors.primaryLight.withOpacity(0.1),
+                      ],
+                    ),
                   ),
+                  child: const Icon(Icons.eco, size: 80, color: AppColors.primaryLight),
                 ),
-                child: const Icon(Icons.eco, size: 80, color: AppColors.primaryLight),
               ),
             ),
             const SizedBox(height: 32),
@@ -121,10 +201,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             const SizedBox(height: 40),
             
             if (!_isBackendUp)
-              const Text(
-                "Connecting to Server \nPowered by AWS cloud infrastructure",
+              Text(
+                _serverUnreachable
+                    ? "Our servers are currently taking a nap.\nError Code: API_UNREACHABLE\nPlease retry closing the app."
+                    : "Connecting to Server \nPowered by AWS cloud infrastructure",
                 textAlign: TextAlign.center,
-                style: TextStyle(color: AppColors.textTertiary, fontSize: 12),
+                style: TextStyle(
+                  color: _serverUnreachable ? AppColors.danger : AppColors.textTertiary,
+                  fontSize: 12,
+                ),
               ),
           ],
         ),
