@@ -1,6 +1,6 @@
-# Volunteer Cleanup Network — Backend
+# Volunteer Cleanup Network -- Backend
 
-A **FastAPI** backend powering a community-driven trash cleanup platform. Users report waste sightings, volunteers claim and clean them up, and the system awards points — creating a gamified environmental cleanup loop.
+A **FastAPI** backend powering a community-driven trash cleanup platform. Users report waste sightings, volunteers claim and clean them up, and the system awards points -- creating a gamified environmental cleanup loop.
 
 ---
 
@@ -16,23 +16,25 @@ A **FastAPI** backend powering a community-driven trash cleanup platform. Users 
 - [Volunteer Workflow](#volunteer-workflow)
 - [External Services](#external-services)
 - [Docker Deployment](#docker-deployment)
+- [Production Deployment (AWS EC2)](#production-deployment-aws-ec2)
+- [Security Hardening](#security-hardening)
 
 ---
 
 ## Architecture Overview
 
 ```
-┌──────────────┐     ┌──────────────┐     ┌──────────────────┐
-│  Flutter App │────>│   FastAPI     │────>│  SQLite / PgSQL  │
-│  (Frontend)  │<────│   Backend     │<────│  (Database)      │
-└──────────────┘     └──────┬───────┘     └──────────────────┘
-                            │
-              ┌─────────────┼─────────────┐
-              │             │             │
-        ┌─────┴─────┐ ┌────┴────┐ ┌──────┴──────┐
-        │ Cloudinary │ │  Redis  │ │ ML Service  │
-        │ (Images)   │ │(Upstash)│ │(Classifier) │
-        └───────────┘ └─────────┘ └─────────────┘
++--------------+     +--------------+     +------------------+
+|  Flutter App |---->|   FastAPI     |---->|  SQLite / PgSQL  |
+|  (Frontend)  |<----|   Backend     |<----|  (Database)      |
++--------------+     +------+-------+     +------------------+
+                            |
+              +-------------+-------------+
+              |             |             |
+        +-----+-----+ +----+----+ +------+------+
+        | Cloudinary | |  Redis  | | ML Service  |
+        | (Images)   | |(Upstash)| |(Classifier) |
+        +-----------+ +---------+ +-------------+
 ```
 
 **Tech Stack:**
@@ -40,9 +42,12 @@ A **FastAPI** backend powering a community-driven trash cleanup platform. Users 
 - **ORM:** SQLAlchemy 2.0 (async with `asyncpg` / `aiosqlite`)
 - **Auth:** JWT (access tokens) + hashed refresh tokens + Redis cache
 - **Image Storage:** Cloudinary (with mock mode for local dev)
-- **ML Service:** External trash classifier microservice
+- **ML Service:** External trash classifier microservice (ONNX, runs in sibling container)
 - **Cache/Session:** Upstash Redis (serverless)
 - **Database:** SQLite (local dev) / PostgreSQL (production)
+- **Notifications:** Firebase Cloud Messaging (FCM) via Firebase Admin SDK
+
+For authentication internals, refer to the [Auth Module README](./auth/README.md).
 
 ---
 
@@ -52,7 +57,7 @@ A **FastAPI** backend powering a community-driven trash cleanup platform. Users 
 backend/
 ├── main.py                  # Application entry point & FastAPI app factory
 ├── database.py              # Async SQLAlchemy engine, session factory, DB config
-├── models.py                # SQLAlchemy models: Post, Comment, Like
+├── models.py                # SQLAlchemy models: Post, Comment, Like, Reward, RedemptionRequest
 ├── schemas.py               # Pydantic schemas for request/response validation
 ├── crud.py                  # Reusable CRUD operations (users, posts, comments)
 ├── .env                     # Environment variables (secrets, DB URL, API keys)
@@ -60,33 +65,36 @@ backend/
 ├── Dockerfile               # Container build instructions
 ├── auth.db                  # SQLite database file (auto-created, gitignored)
 │
-├── auth/                    # ── Authentication Module ──────────────────
+├── auth/                    # -- Authentication Module (see auth/README.md) ----
 │   ├── __init__.py
-│   ├── models.py            #   User, RefreshToken, OAuthAccount models
+│   ├── models.py            #   User, RefreshToken, OAuthAccount, Admin models
 │   ├── schemas.py           #   Auth request/response Pydantic schemas
 │   ├── dependencies.py      #   get_current_user dependency (JWT guard)
 │   ├── redis_client.py      #   Upstash Redis client for refresh token cache
-│   ├── SETUP.md             #   Auth module setup documentation
+│   ├── README.md            #   Auth module setup documentation
 │   │
-│   ├── routers/             #   ── Auth API Routes ──
+│   ├── routers/             #   -- Auth API Routes --
 │   │   ├── __init__.py
 │   │   ├── auth.py          #     Register, Login, Refresh, Logout, /me
 │   │   └── oauth.py         #     GitHub OAuth via Supabase JWT
 │   │
-│   └── utils/               #   ── Auth Utilities ──
+│   └── utils/               #   -- Auth Utilities --
 │       ├── __init__.py
 │       ├── jwt.py           #     JWT creation, decoding, refresh token hashing
 │       ├── hashing.py       #     bcrypt password hashing & verification
 │       └── oauth_verify.py  #     Supabase/GitHub token verification
 │
-└── routers/                 # ── Feature Routes ─────────────────────────
+└── routers/                 # -- Feature Routes ----------------------------
     ├── __init__.py
     ├── posts.py             #   Post CRUD + volunteer workflow endpoints
     ├── post_service.py      #   Business logic: feed queries, start_work
     ├── ml_service.py        #   Background tasks: ML classification calls
     ├── comments.py          #   Comment CRUD endpoints
     ├── images.py            #   Image upload to Cloudinary (+ mock mode)
-    └── users.py             #   User profile, stats, leaderboard
+    ├── users.py             #   User profile, stats, leaderboard
+    ├── admins.py            #   Admin-only routes (ban, promote, reward mgmt)
+    ├── rewards.py           #   Reward catalog and redemption requests
+    └── notification_service.py  # Firebase push notification helper
 ```
 
 ### File-by-File Breakdown
@@ -97,23 +105,13 @@ backend/
 |------|---------|
 | **`main.py`** | Creates the FastAPI app with lifespan events (auto-creates DB tables on startup). Registers all routers, configures CORS (allow all for mobile dev), and runs uvicorn on port `8080`. |
 | **`database.py`** | Reads `DATABASE_URL` from `.env`, auto-detects SQLite vs PostgreSQL, replaces sync drivers with async ones (`aiosqlite` / `asyncpg`). Configures SSL for remote Postgres. Exports `engine`, `Base`, `get_db()` dependency. |
-| **`models.py`** | Defines `Post`, `Comment`, `Like` SQLAlchemy models. Posts use a 3-phase status lifecycle (`OPEN` → `IN_PROGRESS` → `PENDING_APPROVAL` → `COMPLETED`). Relationships link to `User` model in the auth module. |
-| **`schemas.py`** | Pydantic v2 schemas with `from_attributes = True`. Defines `UserPublic` (safe, no email), `User` (full), `Post`, `PostCreate`, `PostUpdate`, `Comment`, `CommentCreate`, `Like`. |
+| **`models.py`** | Defines `Post`, `Comment`, `Like`, `Reward`, `RedemptionRequest` SQLAlchemy models. Posts use a multi-phase status lifecycle (`OPEN` -> `IN_PROGRESS` -> `PENDING_APPROVAL` -> `COMPLETED`). Relationships link to `User` model in the auth module. |
+| **`schemas.py`** | Pydantic v2 schemas with `from_attributes = True`. Defines `UserPublic` (safe, no email), `User` (full), `Post`, `PostCreate`, `PostUpdate`, `Comment`, `CommentCreate`, `Like`, `Reward`, `RedemptionRequestItem`, admin schemas. |
 | **`crud.py`** | Shared database operations: `get_user`, `get_user_by_email`, `get_user_by_username`, `get_post`, `create_comment`, `get_comments_by_post`. Uses `selectinload` for eager relationship loading. |
 
 #### Auth Module (`auth/`)
 
-| File | Purpose |
-|------|---------|
-| **`models.py`** | `User` (id, email, username, password_hash, is_banned, points), `RefreshToken` (hashed token storage with revocation), `OAuthAccount` (provider linking for GitHub/OIDC). Uses String UUIDs for SQLite+Postgres portability. |
-| **`schemas.py`** | `RegisterRequest`, `LoginRequest`, `RefreshRequest`, `LogoutRequest`, `FirebaseAuthRequest` (for OAuth), `TokenResponse`, `UserResponse`, `MessageResponse`. |
-| **`dependencies.py`** | `get_current_user()` — FastAPI dependency that extracts the JWT Bearer token, decodes it, fetches the user from DB, and checks ban status. Returns `User` object or raises `401`/`403`. |
-| **`redis_client.py`** | Initializes Upstash Redis client using env vars. Used for fast refresh token lookups (microsecond latency vs DB round-trip). |
-| **`routers/auth.py`** | **Register:** validates uniqueness (email + username), bcrypt hashes password. **Login:** verifies credentials, issues JWT access token (15min) + random refresh token (30 days), stores hash in DB + Redis. **Refresh:** checks Redis first (fast path), rotates tokens (old revoked, new issued). **Logout:** deletes from Redis instantly, marks revoked in DB for audit. **`/me`:** returns current user via JWT guard. |
-| **`routers/oauth.py`** | **GitHub OAuth** via Supabase: receives Supabase JWT, verifies it, links/creates user + OAuthAccount, issues app tokens. |
-| **`utils/jwt.py`** | `create_access_token()` — JWT with `sub` (user_id), `exp`, `type`. `decode_access_token()` — validates JWT. `create_refresh_token()` — `secrets.token_urlsafe(64)` (NOT a JWT). `hash_refresh_token()` — SHA-256 hash (never store raw). |
-| **`utils/hashing.py`** | `hash_password()` / `verify_password()` using bcrypt. |
-| **`utils/oauth_verify.py`** | `verify_supabase_token()` — decodes Supabase JWT using the Supabase JWT secret, extracts email, provider, and provider_user_id. |
+Documented separately. See [auth/README.md](./auth/README.md) for token lifecycle, OAuth setup, Redis caching, and provider swapping details.
 
 #### Feature Routers (`routers/`)
 
@@ -124,7 +122,10 @@ backend/
 | **`ml_service.py`** | Background tasks: `process_post_ml()` sends image URL to classifier, updates post with predicted class + points. `verify_volunteer_post_ml()` verifies "before" photo validity. Uses `AsyncSessionLocal` for independent DB sessions in background tasks. |
 | **`comments.py`** | **Create comment** (auth required, verifies post exists), **List comments** (public, by post_id). |
 | **`images.py`** | **Upload image** (auth required): validates MIME type, resizes with Pillow (max 1920x1080), converts to WebP (quality 85), uploads to Cloudinary. **Mock mode** (`USE_MOCK_CLOUD=True`): returns fake URL for local testing. |
-| **`users.py`** | **`/users/me`** — full profile (private). **`/users/profile/stats`** — dashboard data (task counts, points, my_requests, my_contributions). **`/users/leaderboard`** — top 10 users by points (public). |
+| **`users.py`** | **`/users/me`** -- full profile (private). **`/users/profile/stats`** -- dashboard data (task counts, points, my_requests, my_contributions). **`/users/leaderboard`** -- top 10 users by points (public). Point appeal/redemption requests via profile. |
+| **`admins.py`** | Admin-guarded routes: remove user, promote to admin, ban/unban, search users, create rewards, restock, review redemption requests. All routes auto-require admin via router-level dependency. |
+| **`rewards.py`** | User-facing reward endpoints: list available rewards (filtered by affordability and stock), request redemption (deducts points immediately). |
+| **`notification_service.py`** | Firebase Admin SDK init + `send_notification()` / `notify_user_async()` helpers. Handles stale FCM token cleanup. Mock mode available via `USE_MOCK_NOTIFICATION`. |
 
 ---
 
@@ -155,9 +156,7 @@ python3 -m venv venv
 source venv/bin/activate
 ```
 
-Or use an existing environment:
-
-### 3. Install Dependeqncies
+### 3. Install Dependencies
 
 ```bash
 pip install -r requirements.txt
@@ -180,6 +179,7 @@ pip install -r requirements.txt
 | `Pillow` | Image processing |
 | `upstash-redis` | Serverless Redis client |
 | `pydantic[email]` | Data validation with email support |
+| `firebase-admin` | Push notifications via FCM |
 
 ### 4. Configure Environment Variables
 
@@ -215,6 +215,10 @@ CLOUDINARY_API_SECRET=your-api-secret
 # --- ML Classifier Microservice ---
 CLASSIFIER_MICORSERVICE=http://localhost:6969
 
+# --- Firebase (Push Notifications) ---
+# Place the Firebase Admin SDK JSON in backend/ root
+# USE_MOCK_NOTIFICATION=True   # set to skip real FCM calls in dev
+
 # --- Dev Toggles ---
 # Set to "True" to use mock image uploads (no Cloudinary calls)
 USE_MOCK_CLOUD=True
@@ -228,13 +232,12 @@ python main.py
 
 The server starts on `http://0.0.0.0:8080` with auto-reload.
 
-- **Swagger UI:** [http://127.0.0.1:8080/docs](http://127.0.0.1:8080/docs)
-- **ReDoc:** [http://127.0.0.1:8080/redoc](http://127.0.0.1:8080/redoc)
+- **Swagger UI:** `http://127.0.0.1:8080/docs`
+- **ReDoc:** `http://127.0.0.1:8080/redoc`
 
 On first run, all database tables are auto-created via the lifespan event.
 
-
-
+---
 
 ## API Endpoints
 
@@ -242,14 +245,14 @@ On first run, all database tables are auto-created via the lifespan event.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `GET` | `/` | No | Health check — returns `{"message": "App API is running"}` |
+| `GET` | `/` | No | Health check -- returns `{"message": "App API is running"}` |
 
 ### Authentication (`/auth`)
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
 | `POST` | `/auth/register` | No | Register a new user (email, username, password) |
-| `POST` | `/auth/login` | No | Login — returns access + refresh tokens |
+| `POST` | `/auth/login` | No | Login -- returns access + refresh tokens |
 | `POST` | `/auth/refresh` | No | Rotate refresh token, get new access token |
 | `POST` | `/auth/logout` | No | Invalidate refresh token (Redis + DB) |
 | `GET` | `/auth/me` | Yes | Get current user profile from JWT |
@@ -290,31 +293,37 @@ On first run, all database tables are auto-created via the lifespan event.
 
 | Method | Endpoint | Auth | Description |
 |--------|----------|------|-------------|
-| `POST` | `/images/upload/` | Yes | Upload image (resized → WebP → Cloudinary) |
+| `POST` | `/images/upload/` | Yes | Upload image (resized -> WebP -> Cloudinary) |
+
+### Rewards (`/rewards`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `GET` | `/rewards/available` | Yes | List rewards user can afford and are in stock |
+| `POST` | `/rewards/{reward_id}/request` | Yes | Request a reward redemption (points deducted) |
+
+### Admin (`/admin`)
+
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| `DELETE` | `/admin/remove/{user_id}` | Admin | Hard-delete a user account |
+| `POST` | `/admin/promote/{user_id}` | Admin | Promote user to admin |
+| `POST` | `/admin/ban/{user_id}` | Admin | Ban or unban a user |
+| `GET` | `/admin/users/search` | Admin | Look up user by username or email |
+| `POST` | `/admin/rewards` | Admin | Create a new reward |
+| `POST` | `/admin/rewards/{reward_id}/restock` | Admin | Add stock to existing reward |
+| `GET` | `/admin/rewards/requests` | Admin | View pending redemption requests |
+| `POST` | `/admin/rewards/requests/{request_id}/review` | Admin | Approve or reject a redemption request |
 
 ---
 
 ## Authentication System
 
-The auth system uses a **dual-token strategy** with Redis caching:
+The auth system uses a **dual-token strategy** with Redis caching.
 
-```
-┌──────────┐                   ┌──────────┐
-│  Client  │── Login ────────> │  Server  │
-│ (Flutter)│<── access_token ──│          │
-│          │    refresh_token  │          │
-└────┬─────┘                   └────┬─────┘
-     │                              │
-     │  API calls with              │  Stores refresh_token hash in:
-     │  Authorization: Bearer JWT   │   - Redis (fast lookup, TTL)
-     │                              │   - PostgreSQL (audit trail)
-     │                              │
-     │  When access expires (15m):  │
-     │  POST /auth/refresh          │  Checks Redis → rotates tokens
-     └──────────────────────────────┘
-```
+Refer to [auth/README.md](./auth/README.md) for the full breakdown including token lifecycle diagrams, OAuth flow, provider swapping, and local-vs-production checklists.
 
-### Token Details
+### Token Summary
 
 | Token | Type | Lifetime | Storage |
 |-------|------|----------|---------|
@@ -328,7 +337,7 @@ The auth system uses a **dual-token strategy** with Redis caching:
 - **Redis-first validation:** refresh token lookup is O(1) via Redis, not a DB query
 - **Instant logout:** Redis key deleted immediately; DB marked for audit trail
 - **Ban enforcement:** checked on every authenticated request via `get_current_user`
-- **Token hash storage:** raw refresh tokens never stored in DB — only SHA-256 hashes
+- **Token hash storage:** raw refresh tokens never stored in DB -- only SHA-256 hashes
 
 ---
 
@@ -337,32 +346,44 @@ The auth system uses a **dual-token strategy** with Redis caching:
 ### Entity Relationship
 
 ```
-┌──────────┐       ┌──────────────┐
-│   User   │──1:N──│    Post      │ (as author)
-│          │──1:N──│              │ (as volunteer)
-│          │──1:N──│              │ (as resolved_by)
-│          │       └──────┬───────┘
-│          │              │
-│          │──1:N──┌──────┴───────┐
-│          │       │   Comment    │
-│          │       └──────────────┘
-│          │──1:N──┌──────────────┐
-│          │       │     Like     │
-│          │       └──────────────┘
-│          │──1:N──┌──────────────┐
-│          │       │ RefreshToken │
-│          │       └──────────────┘
-│          │──1:N──┌──────────────┐
-│          │       │ OAuthAccount │
-└──────────┘       └──────────────┘
++----------+       +--------------+
+|   User   |--1:N--| Post         | (as author)
+|          |--1:N--|              | (as volunteer)
+|          |--1:N--|              | (as resolved_by)
+|          |       +------+-------+
+|          |              |
+|          |--1:N--+------+-------+
+|          |       |   Comment    |
+|          |       +--------------+
+|          |--1:N--+--------------+
+|          |       |     Like     |
+|          |       +--------------+
+|          |--1:N--+--------------+
+|          |       | RefreshToken |
+|          |       +--------------+
+|          |--1:N--+--------------+
+|          |       | OAuthAccount |
+|          |       +--------------+
+|          |--1:N--+--------------+
+|          |       | Redemption   |
+|          |       | Request      |
++----------+       +--------------+
+     |
+     +--1:1--+--------------+
+             |    Admin      |
+             +--------------+
+
++--------------+
+|   Reward     |--1:N-- RedemptionRequest
++--------------+
 ```
 
 ### Post Status Lifecycle
 
 ```
-  OPEN ──> IN_PROGRESS ──> PENDING_APPROVAL ──> COMPLETED
-   │                                              
-   └────────────────> CANCELLED                  
+  OPEN --> IN_PROGRESS --> PENDING_APPROVAL --> COMPLETED
+   |
+   +----------------> CANCELLED
 ```
 
 ---
@@ -371,19 +392,19 @@ The auth system uses a **dual-token strategy** with Redis caching:
 
 The core gamification loop follows a **3-phase task lifecycle**:
 
-### Phase 1 — Author Reports Waste
+### Phase 1 -- Author Reports Waste
 1. Author uploads a photo via `/images/upload/`
 2. Author creates a post via `POST /posts/` with image URL + GPS coords
 3. Background task sends image to ML classifier for auto-classification
 4. Post status: **`OPEN`**
 
-### Phase 2 — Volunteer Clocks In
+### Phase 2 -- Volunteer Clocks In
 1. Volunteer calls `POST /posts/{id}/start_work` with a "before" photo
 2. Post status changes to **`IN_PROGRESS`**
 3. Background task runs ML verification on the volunteer's photo
 4. Timestamp recorded for duration tracking
 
-### Phase 3 — Volunteer Clocks Out & Author Approves
+### Phase 3 -- Volunteer Clocks Out & Author Approves
 1. Volunteer calls `POST /posts/{id}/submit_proof` with an "after" photo
 2. Post status changes to **`PENDING_APPROVAL`**
 3. Cleanup duration is calculated automatically
@@ -401,17 +422,36 @@ The core gamification loop follows a **3-phase task lifecycle**:
 | **Cloudinary** | Image upload & CDN | Yes for production; mock mode available |
 | **ML Classifier** | Trash type classification from images | No (runs in background, fails gracefully) |
 | **Supabase** | GitHub OAuth provider | Only for OAuth login flow |
+| **Firebase** | Push notifications (FCM) | Yes for production; mock mode available |
 
 ---
 
 ## Docker Deployment
 
-### Build & Run
+The project ships with a `docker-compose.yml` at the repo root that orchestrates both the backend and ML classifier as sibling containers on a shared bridge network.
 
-```bash
-docker build -t cleanup-backend .
-docker run -p 8080:8080 --env-file .env cleanup-backend
+### Docker Compose Overview
+
+```yaml
+services:
+  backend:
+    build: ./backend
+    container_name: vcn_backend
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - ./backend/.env
+
+  ml:
+    build: ./trash_classifier
+    container_name: vcn_ml
+    restart: always
+    ports:
+      - "6969:6969"
 ```
+
+Both services share a `vcn_network` bridge. The backend reaches the classifier at `http://vcn_ml:6969` using Docker's internal DNS.
 
 ### Dockerfile Summary
 
@@ -421,11 +461,91 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
-EXPOSE 8080
-CMD ["sh", "-c", "uvicorn main:app --host 0.0.0.0 --port $PORT --reload"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
-> **Note:** The `$PORT` variable allows cloud providers (Railway, Render, etc.) to inject their own port.
+### Build & Run (Local)
+
+```bash
+docker compose up --build -d
+```
+
+---
+
+## Production Deployment (AWS EC2)
+
+The backend and ML service run on an AWS EC2 instance behind nginx, with HTTPS via Let's Encrypt and a free DuckDNS subdomain. No CLI commands below -- just the sequence of steps.
+
+### 1. Provision the EC2 Instance
+
+- Launch an Ubuntu instance (t2.micro or t3.small depending on ML model memory needs).
+- During launch, create or attach a security group that opens inbound ports **22** (SSH), **80** (HTTP), **443** (HTTPS). Port 8080 and 6969 should stay closed to the public -- nginx proxies to them internally.
+- Download the SSH key pair and connect via your terminal.
+
+### 2. Install Docker and Docker Compose
+
+- Install Docker Engine from the official Docker apt repository (not the snap or distro-default version).
+- Install the Docker Compose plugin (comes bundled with modern Docker Engine installs).
+- Add your user to the `docker` group so you do not need sudo for every command.
+
+### 3. Clone the Repository and Configure
+
+- Clone this repo onto the instance.
+- Copy or create the `backend/.env` file with production values (PostgreSQL URL, real Cloudinary keys, real Redis credentials, a strong JWT secret).
+- Place the Firebase Admin SDK JSON file in the `backend/` directory (the filename must match what `notification_service.py` expects).
+- Set `CLASSIFIER_MICORSERVICE=http://vcn_ml:6969` in `.env` so the backend uses Docker internal networking to reach the ML container.
+
+### 4. Start Containers
+
+- From the repo root, run docker compose in detached mode.
+- Verify both containers are healthy and the backend responds on `localhost:8080`.
+
+### 5. Get a DuckDNS Subdomain
+
+- Register at duckdns.org and create a subdomain (e.g. `yourproject.duckdns.org`).
+- Point it to your EC2 instance's public IP.
+- Optionally set up a cron job or systemd timer on the instance to periodically update the DuckDNS record if the IP changes (relevant for non-Elastic-IP setups).
+
+### 6. Install and Configure Nginx
+
+- Install nginx from the system package manager.
+- Create a server block that listens on port 80, sets `server_name` to your DuckDNS domain, and proxies all traffic to `http://127.0.0.1:8080`.
+- Make sure to pass `Host`, `X-Real-IP`, and `X-Forwarded-For` headers through the proxy so the backend sees real client IPs.
+- Test the config and reload nginx.
+
+### 7. HTTPS via Certbot
+
+- Install certbot and the nginx plugin from the system package manager.
+- Run certbot with the nginx plugin for your DuckDNS domain.
+- Certbot will automatically modify the nginx config to listen on 443 with the certificate and redirect port 80 to 443.
+- Certbot auto-renews via a systemd timer; verify the timer is active.
+
+### 8. Verify
+
+- Hit `https://yourproject.duckdns.org/` from a browser or curl -- it should return the health check JSON over HTTPS.
+- Update the Flutter app's `.env` to point `BACKEND_API` to `https://yourproject.duckdns.org`.
+
+---
+
+## Security Hardening
+
+### Nginx Rate Limiting
+
+Configure rate limiting in the nginx `http` block to prevent abuse. Define a rate limit zone keyed by client IP and apply it to the server or specific locations. A reasonable starting point is 10 requests per second with a short burst allowance. Auth endpoints (`/auth/login`, `/auth/register`) should have a stricter limit (e.g. 3 requests per second) to slow down brute-force attempts.
+
+### Blocking /docs and /redoc in Production
+
+The Swagger UI (`/docs`) and ReDoc (`/redoc`) endpoints expose the full API schema publicly. In production, these should not be accessible to arbitrary users.
+
+**Option A -- Block at nginx level:** Add `location` blocks for `/docs` and `/redoc` that return 403 or require HTTP Basic Auth (username/password configured in an htpasswd file). This way the endpoints still exist for your team behind a password but are invisible to the public.
+
+**Option B -- Disable in FastAPI:** Set `docs_url=None` and `redoc_url=None` in the `FastAPI()` constructor when running in production (controlled via an env var). This removes the routes entirely.
+
+Currently `redoc_url` is already set to `None` in `main.py`. Apply similar treatment to `docs_url` when the admin panel is ready to manage things without Swagger.
+
+### Admin Panel
+
+**TODO:** The admin endpoints (`/admin/*`) currently work via API calls only (Swagger or direct HTTP). A proper admin web panel (React, or a lightweight tool like FastAPI-Admin) needs to be built to provide a UI for user management, reward CRUD, and redemption approvals. Until then, admin operations are performed through the API directly by users who have been promoted to the Admin table.
 
 ---
 
@@ -463,5 +583,3 @@ AUTHZ: Non-author edit blocked ........ [PASS] (403)
 AUTH: Logout .......................... [PASS]
 AUTH: Post-logout refresh blocked ..... [PASS] (401)
 ```
-
-
