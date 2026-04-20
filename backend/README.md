@@ -419,7 +419,7 @@ The core gamification loop follows a **3-phase task lifecycle**:
 | Service | Purpose | Required? |
 |---------|---------|-----------|
 | **Upstash Redis** | Refresh token caching, instant logout | Yes (for auth refresh/logout) |
-| **Cloudinary** | Image upload & CDN | Yes for production; mock mode available |
+| **Cloudinary** | Image upload & CDN. Can be migrated to AWS S3 + CloudFront to keep storage within the same AWS account | Yes for production; mock mode available |
 | **ML Classifier** | Trash type classification from images | No (runs in background, fails gracefully) |
 | **Supabase** | GitHub OAuth provider | Only for OAuth login flow |
 | **Firebase** | Push notifications (FCM) | Yes for production; mock mode available |
@@ -475,6 +475,79 @@ docker compose up --build -d
 ## Production Deployment (AWS EC2)
 
 The backend and ML service run on an AWS EC2 instance behind nginx, with HTTPS via Let's Encrypt and a free DuckDNS subdomain. No CLI commands below -- just the sequence of steps.
+
+### Infrastructure Diagram
+
+```
+                        User Query
+                             |
+                      +------+-------+
+                      |   DuckDNS    |
+                      | (DNS Lookup) |
+                      | project.     |
+                      | duckdns.org  |
+                      +------+-------+
+                             |
+                             | resolves to
+                             v
++====================================================================+
+|  AWS CLOUD                                                         |
+|                                                                    |
+|  +-------------------+                                             |
+|  | Security Group    |                                             |
+|  | IN: 22, 80, 443   |                                            |
+|  | OUT: all           |                                            |
+|  +--------+----------+                                             |
+|           |                                                        |
+|    +------+------+                                                 |
+|    | Elastic IP  |                                                 |
+|    +------+------+                                                 |
+|           |                                                        |
+|  +========+=====================================================+  |
+|  | EC2 INSTANCE (something like Ubuntu)                         |  |
+|  |                                                              |  |
+|  |  +---------------+         +---------+                       |  |
+|  |  |    Nginx      | <------ | Certbot |                       |  |
+|  |  | :443 (HTTPS)  |         | (auto-  |                       |  |
+|  |  | :80 redirect  |         |  renew) |                       |  |
+|  |  +-------+-------+         +---------+                       |  |
+|  |          |                                                   |  |
+|  |          | TLS termination                                   |  |
+|  |          | proxy_pass (plain HTTP internally)                |  |
+|  |          |                                                   |  |
+|  |  +-------+---------------------------------------------+    |  |
+|  |  | Docker Compose (vcn_network bridge)                  |    |  |
+|  |  |                                                      |    |  |
+|  |  |  +---------------------+   +----------------------+ |    |  |
+|  |  |  | vcn_backend         |   | vcn_ml               | |    |  |
+|  |  |  | FastAPI :8080       |-->| ML Classifier :6969  | |    |  |
+|  |  |  | (uvicorn)           |   | (ONNX runtime)       | |    |  |
+|  |  |  +----------+----------+   +----------------------+ |    |  |
+|  |  |             |                                        |    |  |
+|  |  +-------+-----+----------------------------------------+    |  |
+|  |          |                                                   |  |
+|  +=========+===================================================+  |
+|            |                                                       |
+|    +-------+--------+                                              |
+|    | PostgreSQL     |                                              |
+|    | (AWS RDS)      |                                              |
+|    +----------------+                                              |
+|                                                                    |
++====================================================================+
+             |
+             | outbound connections
+             |
+    +--------+---------+-----------+
+    |        |         |           |
+    v        v         v           v
++-------+ +------+ +--------+ +--------+
+|Upstash| |Cloudi| |Supabase| |Firebase|
+| Redis | | nary | | (OAuth)| |  (FCM) |
+|(cache)| |(imgs)| |        | |        |
++-------+ +------+ +--------+ +--------+
+```
+
+**Request flow:** User query -> DuckDNS resolves domain to Elastic IP -> hits AWS Security Group (only 80/443 open) -> Nginx terminates TLS, forwards plain HTTP to `localhost:8080` -> FastAPI container processes the request, reaching the ML container over Docker's internal bridge when classification is needed. PostgreSQL (RDS) lives within the same AWS network. External managed services (Redis, Cloudinary, etc.) are reached outbound.
 
 ### 1. Provision the EC2 Instance
 
