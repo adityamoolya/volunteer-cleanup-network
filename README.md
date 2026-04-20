@@ -2,22 +2,9 @@
 
 The Volunteer Cleanup Network is an automated, community-driven environmental cleanup platform. It gamifies the process of making our communities cleaner by connecting users who discover and report trash with volunteers who step in to perform the cleanup. 
 
-Our system heavily leverages asynchronous machine learning models to automatically categorize the reported trash, assess the severity of the mess, and estimate point rewards—delivering a streamlined, verifiable, and highly engaging user experience.
+Our system heavily leverages asynchronous machine learning models to automatically categorize the reported trash, assess the severity of the mess, and estimate point rewards -- delivering a streamlined, verifiable, and highly engaging user experience.
 
-📱 [**Download the .apk from here**](https://drive.google.com/drive/folders/166HY1sx200e-gqqEXpLeeSRyy_l35O4W?usp=sharing)
-
----
-
-## Technical Documentation
-
-Because the backend features a robust API with complex machine learning verifications, asynchronous processes, and multi-actor gamified states, we have separated the backend technical documentation.
-
-Read the **[Backend Technical Documentation (README)](./backend/README.md)** for a deep dive into:
-- The FastAPI Architecture and Database models
-- Machine Learning microservice integrations
-- Gamified volunteer state flow (Open -> In Progress -> Pending -> Completed)
-- JWT token handling, OAuth configuration, and Redis caching
-- Complete API schema and endpoint mapping
+[**Download the .apk from here**](https://drive.google.com/drive/folders/166HY1sx200e-gqqEXpLeeSRyy_l35O4W?usp=sharing)
 
 ---
 
@@ -30,14 +17,44 @@ Read the **[Backend Technical Documentation (README)](./backend/README.md)** for
 5. **Resolution (Author)**: The author reviews the evidence bundle and approves the point payout, closing the case and awarding the volunteer.
 6. **Redemption**: Volunteers can browse the reward catalog and redeem the points they earned for various rewards.
 
+---
+
 ## High-Level Architecture 
 
-- **Frontend (Mobile)**: Flutter, Dart, Dio, Geolocator.
-- **Backend (API)**: FastAPI, SQLAlchemy (Async), PostgreSQL/SQLite, Upstash Redis.
-- **AI Microservice**: TensorFlow / Keras models running as an independent HTTP service.
-- **Infrastructure**: Hugging Face Spaces (Backend/ML hosting), Cloudinary (Images), Railway (Database).
+- **Frontend (Mobile)**: Flutter, Dart, Dio, Geolocator, Google Maps, Firebase Messaging.
+- **Backend (API)**: FastAPI, SQLAlchemy (Async), PostgreSQL/SQLite, Upstash Redis, Firebase Admin SDK.
+- **AI Microservice**: ONNX model running as an independent HTTP service (sibling Docker container).
+- **Infrastructure**: AWS EC2 (Backend + ML hosting), Cloudinary (Images), Nginx + Certbot (HTTPS), DuckDNS (DNS).
 
-## Live Servies
+---
 
-* **BACKEND_URL**: [https://adityamoolya-envirorment-el.hf.space](https://adityamoolya-envirorment-el.hf.space)
-* **ML_SERVICE_URL**: [https://adityamoolya-env-ml.hf.space](https://adityamoolya-env-ml.hf.space)
+## Repository Structure
+
+```
+volunteer-cleanup-network/
+├── backend/               # FastAPI backend + auth module
+├── flutter_source_code/   # Flutter mobile app (Android)
+├── trash_classifier/      # ML microservice (ONNX trash classifier)
+└── docker-compose.yml     # Orchestrates backend + ML containers
+```
+
+---
+
+## Detailed Documentation
+
+| Component | README |
+|-----------|--------|
+| **Backend** | [backend/README.md](./backend/README.md) -- API endpoints, database models, volunteer workflow, deployment guide (EC2, Nginx, Docker, HTTPS), security hardening |
+| **Auth Module** | [backend/auth/README.md](./backend/auth/README.md) -- JWT + refresh token system, OAuth setup, Redis caching, provider swapping |
+| **Flutter App** | [flutter_source_code/README.md](./flutter_source_code/README.md) -- App architecture, screens, services, setup guide, theming |
+
+---
+
+## Quick Start (Local Development)
+
+1. Clone the repo and set up `backend/.env` with at minimum a `DATABASE_URL` and `JWT_SECRET`.
+2. From the repo root, run `docker compose up --build` to start both the backend and ML service.
+3. The backend is available at `http://localhost:8080`, ML service at `http://localhost:6969`.
+4. Point the Flutter app's `.env` at `http://10.0.2.2:8080` (Android emulator) and run `flutter run`.
+
+See the individual READMEs linked above for full setup details, environment variables, and production deployment instructions.
