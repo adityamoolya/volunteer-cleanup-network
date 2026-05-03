@@ -26,7 +26,7 @@ Our system heavily leverages asynchronous machine learning models to automatical
 ## App Showcase
 
 <div align="center">
-  <img src="./docs/media/demo.gif" alt="App Demo Workflow" width="600" />
+  <video src="https://github.com/user-attachments/assets/35ba38b6-c3b9-4a82-823b-b8836afe5caf" width="600" controls></video>
 </div>
 
 ### Key Features
