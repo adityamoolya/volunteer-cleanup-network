@@ -44,13 +44,14 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     lifespan=lifespan,
-    title="Community Task APi",
+    title="Volunteer Cleanup Network APi",
     version="7.0",
     redoc_url=None
 )
 
 # CORS configuration
-origins = ["*"] # Allow all for mobile app development 
+origins = [] # Allow None for mobile app development 
+#TODO: add admin panel's domain here 
 
 app.add_middleware(
     CORSMiddleware,

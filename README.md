@@ -1,10 +1,48 @@
 # Volunteer Cleanup Network
 
+<div align="center">
+
+  ![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=for-the-badge&logo=Flutter&logoColor=white)
+  ![Dart](https://img.shields.io/badge/dart-%230175C2.svg?style=for-the-badge&logo=dart&logoColor=white)
+  ![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)
+  ![Python](https://img.shields.io/badge/python-3670A0?style=for-the-badge&logo=python&logoColor=ffdd54)
+  ![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+  ![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+  ![AWS](https://img.shields.io/badge/AWS-%23FF9900.svg?style=for-the-badge&logo=amazon-aws&logoColor=white)
+
+  <br />
+
+  **[Download the latest .apk](https://drive.google.com/drive/folders/166HY1sx200e-gqqEXpLeeSRyy_l35O4W?usp=sharing)**
+</div>
+
+---
+
 The Volunteer Cleanup Network is an automated, community-driven environmental cleanup platform. It gamifies the process of making our communities cleaner by connecting users who discover and report trash with volunteers who step in to perform the cleanup. 
 
-Our system heavily leverages asynchronous machine learning models to automatically categorize the reported trash, assess the severity of the mess, and estimate point rewards -- delivering a streamlined, verifiable, and highly engaging user experience.
+Our system heavily leverages asynchronous machine learning models to automatically categorize the reported trash, assess the severity of the mess, and estimate point rewards, delivering a streamlined, verifiable, and highly engaging user experience.
 
-[**Download the .apk from here**](https://drive.google.com/drive/folders/166HY1sx200e-gqqEXpLeeSRyy_l35O4W?usp=sharing)
+---
+
+## App Showcase
+
+<div align="center">
+  <img src="./docs/media/demo.gif" alt="App Demo Workflow" width="600" />
+</div>
+
+### Key Features
+<p align="center">
+  <img src="./docs/media/feed.jpg" width="220" alt="Task Feed" />
+  <img src="./docs/media/leaderboard.jpg" width="220" alt="Leaderboard" />
+  <img src="./docs/media/profile.jpg" width="220" alt="Profile" />
+</p>
+
+### Interactive API Documentation
+
+The backend is built with FastAPI and provides auto-generated, interactive Swagger UI documentation for all endpoints.
+
+<div align="center">
+  <img src="./docs/media/swagger_ui.jpg" width="800" alt="Swagger UI" />
+</div>
 
 ---
 
@@ -23,7 +61,7 @@ Our system heavily leverages asynchronous machine learning models to automatical
 
 - **Frontend (Mobile)**: Flutter, Dart, Dio, Geolocator, Google Maps, Firebase Messaging.
 - **Backend (API)**: FastAPI, SQLAlchemy (Async), PostgreSQL/SQLite, Upstash Redis, Firebase Admin SDK.
-- **AI Microservice**: ONNX model running as an independent HTTP service (sibling Docker container).
+- **AI Microservice**: YOLOv8 model (exported to ONNX) running as an independent HTTP service (sibling Docker container).
 - **Infrastructure**: AWS EC2 (Backend + ML hosting), Cloudinary (Images), Nginx + Certbot (HTTPS), DuckDNS (DNS).
 
 ---
@@ -33,8 +71,9 @@ Our system heavily leverages asynchronous machine learning models to automatical
 ```
 volunteer-cleanup-network/
 ├── backend/               # FastAPI backend + auth module
+├── docs/media/            # App screenshots, demo GIFs, and banners
 ├── flutter_source_code/   # Flutter mobile app (Android)
-├── trash_classifier/      # ML microservice (ONNX trash classifier)
+├── trash_classifier/      # ML microservice (YOLOv8/ONNX trash classifier)
 └── docker-compose.yml     # Orchestrates backend + ML containers
 ```
 
@@ -44,9 +83,9 @@ volunteer-cleanup-network/
 
 | Component | README |
 |-----------|--------|
-| **Backend** | [backend/README.md](./backend/README.md) -- API endpoints, database models, volunteer workflow, deployment guide (EC2, Nginx, Docker, HTTPS), security hardening |
-| **Auth Module** | [backend/auth/README.md](./backend/auth/README.md) -- JWT + refresh token system, OAuth setup, Redis caching, provider swapping |
-| **Flutter App** | [flutter_source_code/README.md](./flutter_source_code/README.md) -- App architecture, screens, services, setup guide, theming |
+| **Backend** | [backend/README.md](./backend/README.md): API endpoints, database models, volunteer workflow, deployment guide (EC2, Nginx, Docker, HTTPS), security hardening |
+| **Auth Module** | [backend/auth/README.md](./backend/auth/README.md): JWT + refresh token system, OAuth setup, Redis caching, provider swapping |
+| **Flutter App** | [flutter_source_code/README.md](./flutter_source_code/README.md): App architecture, screens, services, setup guide, theming |
 
 ---
 
